@@ -65,3 +65,14 @@ Når v1 er live, gjenta i ~45 min:
 3. **Velg 2–4 ting**, implementer, kjør `npm run build` + røyktest, se på skjermbilder.
 4. **Deploy** (git push → Vercel), og logg runden i `CHANGELOG.md`.
 5. Gjenta. Aldri bryt eksisterende data; nye felt i `data` skal ha fornuftige standardverdier.
+
+## Løping (fase 1 – bygget 2026-10-04)
+- Løping er en egen økttype i samme app (ikke egen modus): `workouts`-dokument med `kind: 'run'` og `run { distanceKm?, distanceEst?, durationSec?, durationEst?, routeId?, runType?, elevationM?, avgHr? }`. Mangler `kind` = styrke.
+- En løpetur teller som økt i ukesmål, streak, kalender og «økter denne måneden». Volum/1RM hopper over løpeturer.
+- Logging: distanse og tid er valgfrie hver for seg (minst én), med «ca.»-bryter for anslag. Tempo bare når begge finnes. Appen oppfordrer til å fylle inn begge, men tvinger ikke.
+  - Bare tid: teller i ukesmål og minutter. Bare distanse/ca.: teller i km-totaler og km-mål (merket ca.). Rekorder og tempo-topplister krever målte verdier for begge.
+- Ruter (`collection = 'routes'`): navn + distanse, delt mellom alle. Velger man en rute er distansen målt; egen rekordliste per rute. Turer lagrer distansen selv, så endring av ruta påvirker ikke gamle turer.
+- Stoppeklokke: lagrer bare starttid/pauser, så den virker med låst skjerm. Ingen GPS.
+- Ukesmål (`profile.goal`): Samlet (N økter), Fordelt (X styrke + Y løping) eller Med minimum (N økter, minst M løping), pluss valgfritt km-mål. Gammelt `weeklyGoal` brukes som Samlet.
+- Topplister: bryter Styrke | Løping. Løping: km uke/måned (inkl. ca.), rute-rekorder, lengste tur, beste 5 km/10 km/halvmaraton (fra målte turer på D–1,15·D km, regnet om etter snittempo), beste snittempo (3+ km).
+- Fase 2 (ikke bygget): Strava-import, intervaller drag for drag, tredemølle-flagg.

@@ -24,12 +24,14 @@ import {
   PR_LABEL,
 } from '../lib/stats'
 import { notifyFinished } from '../lib/push'
+import { RunActive } from './Run'
 import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout, setProfile } from '../lib/actions'
 
 export function WorkoutPage() {
   useStoreVersion()
   const { me } = useMe()
   const active = activeWorkout(me)
+  if (active?.data.kind === 'run') return <RunActive id={active.id} />
   if (active) return <Logger id={active.id} />
   return <StartScreen />
 }
@@ -37,7 +39,7 @@ export function WorkoutPage() {
 function StartScreen() {
   const { me } = useMe()
   const tpls = templates()
-  const recent = doneWorkouts(me).slice(0, 3)
+  const recent = doneWorkouts(me).filter((w) => w.data.kind !== 'run').slice(0, 3)
   const start = (tid?: string) => {
     startWorkout(me as UserId, tid)
     vibrate(20)
@@ -46,9 +48,18 @@ function StartScreen() {
     <>
       <TopBar title="Ny økt" />
       <div className="page stack-l">
-        <button className="btn primary big block" onClick={() => start()}>
-          <Icon.plus /> Start tom økt
-        </button>
+        <div className="kind-tiles">
+          <button className="kind-tile" onClick={() => start()}>
+            <span className="kind-emoji">🏋️</span>
+            <b>Styrke</b>
+            <span className="tiny muted">Start tom økt</span>
+          </button>
+          <button className="kind-tile" onClick={() => go('lop')}>
+            <span className="kind-emoji">🏃</span>
+            <b>Løpetur</b>
+            <span className="tiny muted">Stoppeklokke eller logg</span>
+          </button>
+        </div>
         {tpls.length > 0 && (
           <section>
             <div className="section-title">

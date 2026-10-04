@@ -19,10 +19,15 @@ Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-t
 
 ## Arbeidsflyt
 - `npm run build` og `node scripts/smoke.mjs --seed <mappe>` (Playwright, mobilviewport, lokal modus) før hver push.
+- Løping/rediger/slett: `node scripts/run-e2e.mjs` (rute, stoppeklokke, ufullstendige data, topplister, ukesmål, rediger/slett, import av løpetur).
 - Endrer du import fra tekst: `npx tsx scripts/test-import.ts` (parser) og `node scripts/import-e2e.mjs` (hele #/import-flyten). Formatet er beskrevet i `src/lib/importText.ts` og må være bakoverkompatibelt – lenker Claude har laget skal fortsette å virke.
 - Se på skjermbildene. Ingen konsollfeil, ingen horisontal scroll.
 - Push til `main` → Vercel deployer automatisk til https://jernlogg.vercel.app
 - Norsk bokmål i UI, mørkt tema, mobil først.
+
+## Løping
+- Se «Løping (fase 1)» i `SPEC.md`. Hjelpefunksjoner i `src/lib/runs.ts`, sider i `src/pages/Run.tsx`, `RunBoards.tsx`, `RunFeed.tsx`, `ProfileRun.tsx`.
+- Fase 2 (Strava, intervaller, tredemølle) skal IKKE bygges før brukeren ber om det.
 
 ## PWA og push-varsler
 - Service worker: `public/sw.js` (network-first for sider, cache-first kun for hashede `/assets/*`, push + notificationclick). Registreres bare i produksjonsbygg og ikke med `?local=1`. Bump `VERSION` ved større endringer.

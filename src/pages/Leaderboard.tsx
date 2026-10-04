@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import { TopBar, Avatar, go, useMe } from '../components/ui'
 import { ExercisePicker } from '../components/ExercisePicker'
+import { RunBoards } from './RunBoards'
 import { useStoreVersion } from '../lib/store'
 import { USERS, type UserId } from '../lib/domain'
 import {
@@ -50,7 +51,7 @@ function Board({ rows, fmt, empty }: { rows: Row[]; fmt: (v: number) => string; 
 
 const BIG3 = ['benkpress', 'kneboy', 'markloft']
 
-export function LeaderboardPage() {
+function StrengthBoards() {
   useStoreVersion()
   const { me } = useMe()
   const used = usedExerciseIds()
@@ -78,8 +79,8 @@ export function LeaderboardPage() {
   const weekStart = startOfWeek()
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   const weekRows: Row[] = USERS.map((u) => {
-    const ws = workoutsInRange(u.id, weekStart)
-    return { id: u.id, value: ws.reduce((a, w) => a + workoutVolume(w.data), 0), sub: `${ws.length} økter` }
+    const ws = workoutsInRange(u.id, weekStart).filter((w) => w.data.kind !== 'run')
+    return { id: u.id, value: ws.reduce((a, w) => a + workoutVolume(w.data), 0), sub: `${ws.length} styrkeøkter` }
   })
   const monthRows: Row[] = USERS.map((u) => ({ id: u.id, value: workoutsInRange(u.id, monthStart).length }))
   const streakRows: Row[] = USERS.map((u) => ({ id: u.id, value: streakWeeks(u.id) }))
@@ -87,8 +88,7 @@ export function LeaderboardPage() {
 
   return (
     <>
-      <TopBar title="Topplister" />
-      <div className="page">
+      <div className="page" style={{ paddingTop: 0 }}>
         <section className="card">
           <div className="spread" style={{ marginBottom: 8 }}>
             <h2>{exerciseById(ex).bodyweight ? 'Flest reps' : 'Beste 1RM'}</h2>
@@ -201,5 +201,38 @@ function HeadToHead() {
         ))}
       </div>
     </section>
+  )
+}
+
+export function LeaderboardPage() {
+  useStoreVersion()
+  const [mode, setMode] = useState<'styrke' | 'lop'>(() => {
+    try {
+      return (localStorage.getItem('jernlogg.toppMode') as 'styrke' | 'lop') || 'styrke'
+    } catch {
+      return 'styrke'
+    }
+  })
+  const pick = (m: 'styrke' | 'lop') => {
+    setMode(m)
+    try {
+      localStorage.setItem('jernlogg.toppMode', m)
+    } catch {}
+  }
+  return (
+    <>
+      <TopBar title="Topplister" />
+      <div className="page" style={{ paddingBottom: 0 }}>
+        <div className="seg" role="tablist">
+          <button role="tab" aria-selected={mode === 'styrke'} className={mode === 'styrke' ? 'on' : ''} onClick={() => pick('styrke')}>
+            🏋️ Styrke
+          </button>
+          <button role="tab" aria-selected={mode === 'lop'} className={mode === 'lop' ? 'on' : ''} onClick={() => pick('lop')}>
+            🏃 Løping
+          </button>
+        </div>
+      </div>
+      {mode === 'styrke' ? <StrengthBoards /> : <RunBoards Board={Board} />}
+    </>
   )
 }

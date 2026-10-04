@@ -1,5 +1,5 @@
 import { put, patch, remove, uid, getDoc, nowIso, list } from './store'
-import type { Feedback, FeedbackComplaint, Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
+import type { RunData, Route, Feedback, FeedbackComplaint, Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
 import { lastSession, activeWorkout, profile } from './stats'
 
 export function newSet(prev?: Partial<SetEntry>): SetEntry {
@@ -221,5 +221,99 @@ export function complainFeedback(feedbackId: string, userId: UserId, text: strin
     const attempts = [...(f.attempts ?? [])]
     if (f.reply) attempts.push({ reply: f.reply, doneAt: f.doneAt ?? nowIso() })
     return { ...f, status: 'open', attempts, reply: undefined, doneAt: undefined }
+  })
+}
+
+/* ---------- running ---------- */
+export type RunInput = {
+  userId: UserId
+  startedAt: string
+  title: string
+  run: RunData
+  notes?: string
+  feeling?: number
+}
+
+/** Create or overwrite a finished run. */
+export function saveRun(input: RunInput, id = uid('w')): string {
+  const cur = getDoc<Workout>(id)?.data
+  const start = Date.parse(input.startedAt)
+  const run: RunData = { ...input.run }
+  delete run.pausedAt
+  delete run.pausedMs
+  const w: Workout = {
+    ...(cur ?? {}),
+    userId: input.userId,
+    kind: 'run',
+    title: input.title,
+    startedAt: new Date(start).toISOString(),
+    endedAt: new Date(start + (run.durationSec ?? 0) * 1000).toISOString(),
+    status: 'done',
+    exercises: [],
+    run,
+    notes: input.notes || undefined,
+    feeling: input.feeling || undefined,
+  }
+  delete (w as any).reopenedFrom
+  put('workouts', id, w)
+  return id
+}
+
+export function startStopwatch(userId: UserId, routeId?: string): string | null {
+  if (activeWorkout(userId)) return null
+  const id = uid('w')
+  const route = routeId ? getDoc<Route>(routeId)?.data : undefined
+  put('workouts', id, {
+    userId,
+    kind: 'run',
+    title: route?.name ?? 'Løpetur',
+    startedAt: nowIso(),
+    endedAt: null,
+    status: 'active',
+    exercises: [],
+    run: { routeId, distanceKm: route?.distanceKm, pausedMs: 0, pausedAt: null },
+  } as Workout)
+  return id
+}
+
+/** Elapsed running time in ms (excluding pauses). */
+export function stopwatchElapsed(w: Workout, now = Date.now()): number {
+  const r = w.run ?? {}
+  const pausedNow = r.pausedAt ? now - Date.parse(r.pausedAt) : 0
+  return Math.max(0, now - Date.parse(w.startedAt) - (r.pausedMs ?? 0) - pausedNow)
+}
+
+export function togglePause(id: string) {
+  updateWorkout(id, (w) => {
+    const r = (w.run = w.run ?? {})
+    if (r.pausedAt) {
+      r.pausedMs = (r.pausedMs ?? 0) + (Date.now() - Date.parse(r.pausedAt))
+      r.pausedAt = null
+    } else r.pausedAt = nowIso()
+  })
+}
+
+export function saveRoute(r: Route, id = uid('r')): string {
+  put('routes', id, r)
+  return id
+}
+
+export function deleteRoute(id: string) {
+  remove(id)
+}
+
+/** Change date/time, duration, title and note of a finished strength workout. */
+export function updateWorkoutMeta(id: string, meta: { startedAt: string; minutes: number | null; title: string; notes?: string }) {
+  updateWorkout(id, (w) => {
+    const start = Date.parse(meta.startedAt)
+    const delta = start - Date.parse(w.startedAt)
+    const oldDur = w.endedAt ? Date.parse(w.endedAt) - Date.parse(w.startedAt) : 0
+    const dur = meta.minutes != null ? meta.minutes * 60000 : oldDur
+    w.startedAt = new Date(start).toISOString()
+    w.endedAt = new Date(start + Math.max(0, dur)).toISOString()
+    w.title = meta.title || w.title
+    w.notes = meta.notes || undefined
+    // move set timestamps along with the workout
+    for (const ex of w.exercises) for (const s of ex.sets) if (s.doneAt) s.doneAt = new Date(Date.parse(s.doneAt) + delta).toISOString()
   })
 }

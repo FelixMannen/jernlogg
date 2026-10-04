@@ -14,6 +14,7 @@ export default async function handler(req, res) {
     if (Date.now() - Date.parse(w.data.endedAt || w.updated_at) > 45 * 60000) return res.status(200).json({ skipped: 'for gammel' })
     if (!(await claimLog(`done:${workoutId}`, { kind: 'friend', workoutId, at: new Date().toISOString() }))) return res.status(200).json({ skipped: 'allerede varslet' })
     const name = USERS[w.data.userId] || 'En kompis'
+    if (w.data.kind === 'run') return res.status(200).json(await notifyRun(w, name, workoutId))
     let sets = 0
     let volume = 0
     for (const ex of w.data.exercises || []) for (const s of ex.sets || []) if (s.done && !s.warmup) {
@@ -38,4 +39,33 @@ export default async function handler(req, res) {
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) })
   }
+}
+
+function fmtTime(sec) {
+  const s = Math.round(sec)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = String(s % 60).padStart(2, '0')
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
+}
+
+async function notifyRun(w, name, workoutId) {
+  const r = w.data.run || {}
+  const route = r.routeId ? await getDoc(r.routeId) : null
+  const parts = []
+  if (r.distanceKm) parts.push(`${r.distanceEst ? 'ca. ' : ''}${String(Math.round(r.distanceKm * 100) / 100).replace('.', ',')} km`)
+  if (r.durationSec) parts.push(`${r.durationEst ? 'ca. ' : ''}${fmtTime(r.durationSec)}`)
+  if (r.distanceKm && r.durationSec) parts.push(`${fmtTime(r.durationSec / r.distanceKm)} /km`)
+  const where = route ? ` ${route.data.name}` : ''
+  const title = `${name} løp akkurat${where} 🏃`
+  const body = `${parts.join(' · ') || w.data.title} – din tur!`
+  const docs = await loadDocs(['push_subscriptions', 'profiles'])
+  const subs = docs.filter((d) => d.collection === 'push_subscriptions')
+  const results = []
+  for (const other of Object.keys(USERS).filter((u) => u !== w.data.userId)) {
+    const p = prefsFor(docs.find((d) => d.id === `profile:${other}`)?.data)
+    if (!p.friends) continue
+    results.push({ userId: other, ...(await sendToUser(subs, other, { title, body, url: `/#/w/${workoutId}`, tag: `done-${workoutId}` })) })
+  }
+  return { ok: true, results }
 }

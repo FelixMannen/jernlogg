@@ -16,6 +16,8 @@ import {
   doneWorkouts,
   fmtDuration,
 } from '../lib/stats'
+import { WorkoutMenuButton, SaveTemplateSheet } from '../components/WorkoutActions'
+import { RunDetail } from './Run'
 import { toggleReaction, reactionsFor, commentsFor, addComment, deleteWorkout, templateFromWorkout, reopenWorkout, updateWorkout, startWorkout, addExercises } from '../lib/actions'
 
 export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boolean }) {
@@ -36,6 +38,7 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
       </>
     )
   const w = doc.data
+  if (w.kind === 'run') return <RunDetail id={id} summary={summary} />
   const u = userById(w.userId)
   const mine = w.userId === me
   const prs = w.status === 'done' ? prsForWorkout(id, w) : []
@@ -49,7 +52,11 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
 
   return (
     <>
-      <TopBar title={summary ? 'Bra jobba! 💪' : w.title} onBack={() => (summary ? go('feed') : back())} />
+      <TopBar
+        title={summary ? 'Bra jobba! 💪' : w.title}
+        onBack={() => (summary ? go('feed') : back())}
+        right={mine && w.status === 'done' ? <WorkoutMenuButton id={id} /> : undefined}
+      />
       <div className="page stack">
         <div className="row" style={{ gap: 12 }}>
           <Avatar id={u.id} />
@@ -268,32 +275,5 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
       </div>
       {saveTpl && <SaveTemplateSheet w={w} onClose={() => setSaveTpl(false)} />}
     </>
-  )
-}
-
-function SaveTemplateSheet({ w, onClose }: { w: Workout; onClose: () => void }) {
-  const { me } = useMe()
-  const [name, setName] = useState(w.title)
-  return (
-    <Sheet title="Lagre som mal" onClose={onClose}>
-      <div className="stack">
-        <label className="field">
-          <span>Navn på malen</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-        </label>
-        <p className="small muted">{w.exercises.map((e) => exerciseById(e.exerciseId).name).join(', ')}</p>
-        <button
-          className="btn primary big block"
-          disabled={!name.trim()}
-          onClick={() => {
-            templateFromWorkout(w, name.trim(), me as UserId)
-            toast(`Malen «${name.trim()}» er lagret`)
-            onClose()
-          }}
-        >
-          Lagre mal
-        </button>
-      </div>
-    </Sheet>
   )
 }

@@ -150,7 +150,7 @@ try {
     await page.getByRole('button', { name: 'Beist' }).click()
   })
   await step('edit flow', async () => {
-    await page.getByRole('button', { name: /Rediger/ }).click()
+    await page.getByRole('button', { name: 'Rediger', exact: true }).click()
     await page.waitForURL(/#\/okt/)
     const save = page.getByRole('button', { name: 'Lagre', exact: true })
     await save.waitFor()

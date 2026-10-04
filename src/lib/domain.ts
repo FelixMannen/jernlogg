@@ -131,7 +131,43 @@ export type Workout = {
   notes?: string
   exercises: WorkoutExercise[]
   feeling?: number // 1-5
+  kind?: 'strength' | 'run' // missing = strength (all workouts before running existed)
+  run?: RunData
   reopenedFrom?: string // set while a finished workout is being edited (original endedAt)
+}
+
+export type RunType = 'rolig' | 'intervall' | 'terskel' | 'langtur' | 'konkurranse'
+export const RUN_TYPES: { id: RunType; label: string }[] = [
+  { id: 'rolig', label: 'Rolig' },
+  { id: 'intervall', label: 'Intervall' },
+  { id: 'terskel', label: 'Terskel' },
+  { id: 'langtur', label: 'Langtur' },
+  { id: 'konkurranse', label: 'Konkurranse' },
+]
+
+export type RunData = {
+  distanceKm?: number
+  distanceEst?: boolean // «ca.»
+  durationSec?: number
+  durationEst?: boolean // «ca.»
+  routeId?: string
+  runType?: RunType
+  elevationM?: number
+  avgHr?: number
+  // stopwatch (while status = 'active')
+  pausedAt?: string | null
+  pausedMs?: number
+}
+
+export type Route = { name: string; distanceKm: number; note?: string; createdBy: UserId }
+
+export type WeeklyGoal = {
+  mode: 'total' | 'split' | 'min'
+  total?: number // total / min modes
+  strength?: number // split
+  run?: number // split
+  runMin?: number // min mode: at least this many runs
+  km?: number // optional running km per week
 }
 
 export type TemplateItem = { exerciseId: string; sets: number; reps: number }
@@ -145,7 +181,8 @@ export type Template = {
 export type Profile = {
   restSeconds?: number
   bodyweight?: number
-  weeklyGoal?: number
+  weeklyGoal?: number // legacy: total sessions per week
+  goal?: WeeklyGoal
   restByExercise?: Record<string, number>
   notify?: { reminders: boolean; days: number; hour: number; friends: boolean; tz: string }
 }

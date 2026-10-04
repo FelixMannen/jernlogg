@@ -15,11 +15,13 @@ import {
   prsForWorkout,
   e1rm,
   fmtDuration,
-  weeklyGoal,
-  workoutsThisWeek,
 } from '../lib/stats'
 import { toggleReaction, reactionsFor, commentsFor } from '../lib/actions'
 import { InstallGuide } from '../components/Notifications'
+import { WorkoutMenuButton } from '../components/WorkoutActions'
+import { goalProgress } from '../lib/runs'
+import { stopwatchElapsed } from '../lib/actions'
+import { RunFeedBody } from './RunFeed'
 
 export function FeedPage() {
   useStoreVersion()
@@ -48,9 +50,9 @@ export function FeedPage() {
             <a key={w.id} className="live-strip" href={mine ? '#/okt' : `#/w/${w.id}`} style={{ ['--me-soft' as any]: `color-mix(in srgb, ${u.color} 16%, transparent)` }}>
               <span className="live-dot" />
               <span className="grow">
-                <b>{mine ? 'Du' : u.name}</b> trener nå · {w.data.title}
+                <b>{mine ? 'Du' : u.name}</b> {w.data.kind === 'run' ? 'løper nå' : 'trener nå'} · {w.data.title}
               </span>
-              <span className="num muted">{fmtDuration(now - Date.parse(w.data.startedAt))}</span>
+              <span className="num muted">{fmtDuration(w.data.kind === 'run' ? stopwatchElapsed(w.data, now) : now - Date.parse(w.data.startedAt))}</span>
             </a>
           )
         })}
@@ -109,21 +111,28 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
   const comments = commentsFor(w.id)
   const dur = w.data.endedAt ? Date.parse(w.data.endedAt) - Date.parse(w.data.startedAt) : 0
   const exs = w.data.exercises
+  const isRun = w.data.kind === 'run'
   return (
     <article className="feed-item">
-      <button className="feed-head" style={{ width: '100%', textAlign: 'left' }} onClick={() => go(`w/${w.id}`)}>
-        <Avatar id={u.id} />
-        <div className="grow">
-          <div style={{ fontWeight: 700 }}>
-            {u.name} <span className="muted" style={{ fontWeight: 500 }}>· {w.data.title}</span>
-            {w.data.feeling ? <span style={{ marginLeft: 6 }}>{FEELINGS[w.data.feeling - 1]}</span> : null}
+      <div className="row" style={{ alignItems: 'flex-start', gap: 0 }}>
+        <button className="feed-head grow" style={{ textAlign: 'left' }} onClick={() => go(`w/${w.id}`)}>
+          <Avatar id={u.id} />
+          <div className="grow">
+            <div style={{ fontWeight: 700 }}>
+              {u.name} <span className="muted" style={{ fontWeight: 500 }}>· {isRun ? '🏃 ' : ''}{w.data.title}</span>
+              {w.data.feeling ? <span style={{ marginLeft: 6 }}>{FEELINGS[w.data.feeling - 1]}</span> : null}
+            </div>
+            <div className="tiny muted">
+              {isRun
+                ? fmtRelDate(w.data.startedAt)
+                : `${fmtRelDate(w.data.startedAt)} · ${dur > 0 ? `${fmtDurationShort(dur)} · ` : ''}${fmtVolume(workoutVolume(w.data))} · ${workoutSetCount(w.data)} sett`}
+            </div>
           </div>
-          <div className="tiny muted">
-            {fmtRelDate(w.data.startedAt)} · {dur > 0 ? `${fmtDurationShort(dur)} · ` : ''}{fmtVolume(workoutVolume(w.data))} · {workoutSetCount(w.data)} sett
-          </div>
-        </div>
-      </button>
-      {prs.length > 0 && (
+        </button>
+        {w.data.userId === me && <WorkoutMenuButton id={w.id} />}
+      </div>
+      {isRun && <RunFeedBody id={w.id} w={w.data} />}
+      {!isRun && prs.length > 0 && (
         <div className="row" style={{ flexWrap: 'wrap', marginTop: 10, gap: 6 }}>
           {prs.slice(0, 3).map((p, i) => (
             <span key={i} className="badge-pr">
@@ -135,7 +144,7 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
         </div>
       )}
       {w.data.notes && <p className="feed-note">«{w.data.notes}»</p>}
-      <ul className="feed-ex">
+      {!isRun && <ul className="feed-ex">
         {exs.slice(0, 4).map((ex) => (
           <li key={ex.uid}>
             <span>{exerciseById(ex.exerciseId).name}</span>
@@ -148,7 +157,7 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
             <span />
           </li>
         )}
-      </ul>
+      </ul>}
       <div className="reactions">
         {REACTIONS.map((e) => {
           const who = reactions.filter((r) => r.emoji === e)
@@ -177,29 +186,57 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
 }
 
 function WeekGoals() {
-  const rows = USERS.map((u) => ({ u, done: workoutsThisWeek(u.id), goal: weeklyGoal(u.id) }))
-  const allDone = rows.every((r) => r.done >= r.goal)
+  const rows = USERS.map((u) => ({ u, p: goalProgress(u.id) }))
+  const allDone = rows.every((r) => r.p.met)
   return (
     <section className="card" style={{ marginBottom: 12, padding: '12px 16px' }}>
       <div className="spread" style={{ marginBottom: 8 }}>
         <h3>Ukesmål</h3>
-        <span className="tiny muted">{allDone ? 'Alle i mål denne uka 🎉' : 'økter denne uka'}</span>
+        <span className="tiny muted">{allDone ? 'Alle i mål denne uka 🎉' : 'denne uka'}</span>
       </div>
       <div className="goals">
-        {rows.map(({ u, done, goal }) => (
-          <button key={u.id} className="goal" onClick={() => go(`u/${u.id}`)} aria-label={`${u.name}: ${done} av ${goal} økter`}>
-            <span className="goal-name">{u.name}</span>
-            <span className="goal-pips">
-              {Array.from({ length: Math.max(goal, done) }).map((_, i) => (
-                <i key={i} style={{ background: i < done ? u.color : undefined, opacity: i >= goal ? 0.6 : 1 }} />
-              ))}
-            </span>
-            <span className="num goal-n">
-              {done}/{goal}
-            </span>
-          </button>
-        ))}
+        {rows.map(({ u, p }) => {
+          const sessionRows = p.rows.filter((r) => r.key !== 'km' && r.key !== 'runMin')
+          const km = p.rows.find((r) => r.key === 'km')
+          const runMin = p.rows.find((r) => r.key === 'runMin')
+          const total = sessionRows.reduce((a, r) => a + r.target, 0)
+          // pips: strength first, then runs (striped)
+          const pips: ('s' | 'r' | '')[] = []
+          if (sessionRows.length === 1 && sessionRows[0].key === 'total') {
+            for (let i = 0; i < p.strength; i++) pips.push('s')
+            for (let i = 0; i < p.run; i++) pips.push('r')
+          } else
+            for (const r of sessionRows) for (let i = 0; i < Math.max(r.target, r.done); i++) pips.push(i < r.done ? (r.key === 'run' ? 'r' : 's') : '')
+          while (pips.length < total) pips.push('')
+          const done = sessionRows.reduce((a, r) => a + Math.min(r.done, r.target), 0)
+          return (
+            <button key={u.id} className="goal" onClick={() => go(`u/${u.id}`)} aria-label={`${u.name}: ${done} av ${total}`}>
+              <span className="goal-name">
+                {u.name}
+                {p.met ? ' ✓' : ''}
+              </span>
+              <span>
+                <span className="goal-pips">
+                  {pips.map((k, i) => (
+                    <i key={i} className={k === 'r' ? 'run' : ''} style={{ background: k ? u.color : undefined, opacity: i >= total ? 0.6 : 1 }} />
+                  ))}
+                </span>
+                {(km || runMin) && (
+                  <span className="tiny muted" style={{ display: 'block', marginTop: 2 }}>
+                    {runMin ? `løping ${runMin.done}/${runMin.target}` : ''}
+                    {runMin && km ? ' · ' : ''}
+                    {km ? `${km.est ? 'ca. ' : ''}${String(km.done).replace('.', ',')}/${km.target} km` : ''}
+                  </span>
+                )}
+              </span>
+              <span className="num goal-n">
+                {done}/{total}
+              </span>
+            </button>
+          )
+        })}
       </div>
+      <div className="tiny muted" style={{ marginTop: 6 }}>Hel = styrke · stripet = løping</div>
     </section>
   )
 }

@@ -391,7 +391,7 @@ export function trainingDays(userId: string): Map<string, number> {
   for (const w of doneWorkouts(userId)) {
     const d = new Date(w.data.startedAt)
     const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    m.set(k, (m.get(k) || 0) + workoutVolume(w.data))
+    m.set(k, (m.get(k) || 0) + Math.max(1, workoutVolume(w.data))) // runs have no volume but still count as a day
   }
   return m
 }

@@ -7,6 +7,8 @@ const now = new Date()
 const docs = [
   { id: 'push:felix1', collection: 'push_subscriptions', data: { userId: 'felix', endpoint: 'https://example.invalid/x', keys: {} } },
   { id: 'profile:felix', collection: 'profiles', data: { notify: { tz: 'UTC', hour: 0, days: 1 } } },
+  { id: 'route1', collection: 'routes', data: { name: 'Elverunden', distanceKm: 6.4 } },
+  { id: 'r1', collection: 'workouts', data: { userId: 'erik', kind: 'run', title: 'Elverunden', status: 'done', startedAt: new Date(now - 1800e3).toISOString(), endedAt: new Date(now - 60e3).toISOString(), exercises: [], run: { routeId: 'route1', distanceKm: 6.4, durationSec: 1755 } }, updated_at: now.toISOString() },
   { id: 'w1', collection: 'workouts', data: { userId: 'david', title: 'Push', status: 'done', startedAt: new Date(now - 3600e3).toISOString(), endedAt: new Date(now - 60e3).toISOString(), exercises: [{ sets: [{ done: true, weight: 100, reps: 5 }] }] }, updated_at: now.toISOString() },
 ]
 const inserted = new Set()
@@ -44,6 +46,8 @@ r = await call('notify', { method: 'POST', body: { workoutId: 'w1' } })
 ok('notify ok', r.s === 200 && r.j.ok && r.j.results.some((x) => x.userId === 'felix'), r)
 r = await call('notify', { method: 'POST', body: { workoutId: 'w1' } })
 ok('notify deduped', r.j.skipped === 'allerede varslet', r)
+r = await call('notify', { method: 'POST', body: { workoutId: 'r1' } })
+ok('notify run', r.s === 200 && r.j.ok && r.j.results.some((x) => x.userId === 'felix'), r)
 r = await call('push-test', { method: 'POST', body: { userId: 'nobody' } })
 ok('push-test rejects unknown user', r.s === 400, r)
 r = await call('health')

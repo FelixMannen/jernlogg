@@ -16,6 +16,8 @@ import { ExerciseDetailPage } from './pages/ExerciseDetail'
 import { ToolsPage } from './pages/Tools'
 import { FeedbackPage } from './pages/Feedback'
 import { ImportPage } from './pages/Import'
+import { RunStartPage, RunFormPage } from './pages/Run'
+import { stopwatchElapsed } from './lib/actions'
 import { syncSubscription } from './lib/push'
 
 init()
@@ -142,6 +144,12 @@ function Shell() {
     case 'okt':
       page = <WorkoutPage />
       break
+    case 'lop': {
+      const sub = (r1 || '').split('?')[0]
+      page =
+        sub === 'ny' ? <RunFormPage key={location.hash} /> : sub === 'rediger' ? <RunFormPage key={location.hash} editId={(r2 || '').split('?')[0]} /> : <RunStartPage />
+      break
+    }
     case 'w':
       page = <WorkoutDetailPage key={r1} id={r1} summary={r2 === 'ferdig'} />
       break
@@ -187,7 +195,7 @@ function Nav({ current }: { current: string }) {
       <div className="nav-inner">
         <NavLink to="feed" label="Feed" icon={<Icon.feed />} on={current === 'feed' || current === 'w'} />
         <NavLink to="topp" label="Topplister" icon={<Icon.trophy />} on={current === 'topp' || current === 'ex'} />
-        <StartLink on={current === 'okt' || current === 'import'} />
+        <StartLink on={current === 'okt' || current === 'import' || current === 'lop'} />
         <NavLink to="maler" label="Maler" icon={<Icon.list />} on={current === 'maler'} />
         <NavLink to="profil" label="Profil" icon={<Icon.user />} on={current === 'profil' || current === 'u' || current === 'verktoy' || current === 'tilbakemeldinger'} />
       </div>
@@ -210,8 +218,16 @@ function StartLink({ on }: { on: boolean }) {
   const now = useNow(active ? 1000 : 60000)
   return (
     <a href="#/okt" className={`${on ? 'on' : ''} ${active ? 'live' : ''}`} aria-label={active ? 'Pågående økt' : 'Start økt'}>
-      <span className="start-btn">{active ? <span className="num" style={{ fontSize: '0.9375rem', fontWeight: 700 }}>{fmtDuration(now - Date.parse(active.data.startedAt)).replace(/^(\d+:\d+):\d+$/, '$1')}</span> : <Icon.plus />}</span>
-      {active ? 'Økt' : 'Start'}
+      <span className="start-btn">
+        {active ? (
+          <span className="num" style={{ fontSize: '0.9375rem', fontWeight: 700 }}>
+            {fmtDuration(active.data.kind === 'run' ? stopwatchElapsed(active.data, now) : now - Date.parse(active.data.startedAt)).replace(/^(\d+:\d+):\d+$/, '$1')}
+          </span>
+        ) : (
+          <Icon.plus />
+        )}
+      </span>
+      {active ? (active.data.kind === 'run' ? 'Løper' : 'Økt') : 'Start'}
     </a>
   )
 }

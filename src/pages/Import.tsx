@@ -6,6 +6,11 @@ import { USERS, userById, type UserId, type Workout } from '../lib/domain'
 import { exercises, exerciseById, doneWorkouts, fmtKg } from '../lib/stats'
 import { addCustomExercise } from '../lib/actions'
 import { parseWorkoutText, decodeImportParam, extractImportParam, type ParseResult } from '../lib/importText'
+import { RunForm, emptyRunValues, runInputFrom, type RunFormValues } from './Run'
+import { toLocalInput } from '../components/WorkoutActions'
+import { routes, routeById, fmtRunTime, hasDistance, hasDuration, runs } from '../lib/runs'
+import { saveRun } from '../lib/actions'
+import { notifyFinished } from '../lib/push'
 
 type DraftSet = { key: string; weight: string; reps: string }
 type DraftExercise = {
@@ -90,13 +95,21 @@ varighet: <minutter>
 notat: <valgfritt>
 <Øvelse>: SxRxKG eller RxKG, kommaseparert (f.eks. Benkpress: 3x15x80 eller Knebøy: 2x10x60, 8x80). 0 kg = kroppsvekt. Bruk punktum som desimaltegn.
 Bruk norske øvelsesnavn som Benkpress, Knebøy, Markløft, Militærpress, Sittende roing, Nedtrekk, Kabelkryss, Pull-ups, Dips, Bicepscurl med manualer, Triceps pushdown, Sidehev, Beinpress, Utfall.
+Løpetur (i stedet for øvelser): Løp: <distanse>km <tid> [rolig|intervall|terskel|langtur|konkurranse] [rutenavn], f.eks. «Løp: 8.2km 42:10 rolig» eller «Løp: Elverunden 29:15». Tid som mm:ss, t:mm:ss eller «42min». Skriv «ca.» foran et tall som er et anslag. Bare tid eller bare distanse er lov.
 Lenken: https://jernlogg.vercel.app/#/import?d=<teksten URL-enkodet, linjer skilt med ;>`
 
 export function ImportPage() {
   useStoreVersion()
   const { me } = useMe()
   const fromLink = useMemo(payloadFromLocation, [])
-  const [draft, setDraft] = useState<Draft | null>(() => (fromLink != null ? buildDraft(fromLink, me as UserId) : null))
+  const initial = useMemo(() => (fromLink != null ? interpret(fromLink, me as UserId) : null), [])
+  const [draft, setDraft] = useState<Draft | null>(initial && 'exercises' in initial ? initial : null)
+  const [runDraft, setRunDraft] = useState<RunDraft | null>(initial && 'values' in initial ? initial : null)
+  const startFrom = (t: string) => {
+    const r = interpret(unwrapPasted(t), me as UserId)
+    if ('values' in r) setRunDraft(r)
+    else setDraft(r)
+  }
   const [text, setText] = useState('')
   const [picking, setPicking] = useState<null | { replace?: string }>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -117,6 +130,8 @@ export function ImportPage() {
     location.replace(location.pathname + search + '#/' + to)
   }
 
+  if (runDraft) return <RunImport draft={runDraft} onChange={setRunDraft} onDone={() => leave('feed')} onCancel={() => (fromLink != null ? leave('okt') : setRunDraft(null))} />
+
   if (!draft) {
     return (
       <>
@@ -128,11 +143,11 @@ export function ImportPage() {
           <textarea
             className="input"
             style={{ minHeight: 160, fontFamily: 'var(--font-num)' }}
-            placeholder={'# Jernlogg v1\nbruker: David\ndato: 2026-10-04 17:00\nvarighet: 60\nBenkpress: 3x15x80\nSittende roing: 12x80, 12x80, 10x80'}
+            placeholder={'# Jernlogg v1\nbruker: David\ndato: 2026-10-04 17:00\nvarighet: 60\nBenkpress: 3x15x80\nSittende roing: 12x80, 12x80, 10x80\n\n(eller en løpetur: Løp: 8.2km 42:10 rolig)'}
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <button className="btn primary big block" disabled={!text.trim()} onClick={() => setDraft(buildDraft(unwrapPasted(text), me as UserId))}>
+          <button className="btn primary big block" disabled={!text.trim()} onClick={() => startFrom(text)}>
             Tolk teksten
           </button>
           <input
@@ -145,7 +160,7 @@ export function ImportPage() {
               if (!f) return
               const t = await f.text()
               setText(t)
-              setDraft(buildDraft(unwrapPasted(t), me as UserId))
+              startFrom(t)
             }}
           />
           <button className="btn block" onClick={() => fileRef.current?.click()}>
@@ -404,6 +419,108 @@ export function ImportPage() {
           }}
         />
       )}
+    </>
+  )
+}
+
+/* ---------- running import ---------- */
+type RunDraft = { values: RunFormValues; warnings: string[]; errors: ParseResult['errors'] }
+
+function interpret(text: string, me: UserId): Draft | RunDraft {
+  const r = parseWorkoutText(text)
+  if (!r.run) return buildDraft(text, me)
+  const warnings: string[] = []
+  const errors = [...r.errors]
+  let userId = me
+  if (r.user) {
+    const u = USERS.find((x) => norm(x.name) === norm(r.user!) || x.id === norm(r.user!))
+    if (u) userId = u.id
+    else warnings.push(`Ukjent bruker «${r.user}» – bruker ${userById(me).name}. Bytt under hvis det er feil.`)
+  } else warnings.push(`Teksten sier ikke hvem løpeturen gjelder – bruker ${userById(me).name}.`)
+  if (r.exercises.length) errors.push({ line: r.exercises[0].line, text: r.exercises.map((e) => e.name).join(', '), message: 'styrkeøvelser og løpetur i samme tekst – bare løpeturen importeres her. Importer styrkeøkta for seg.' })
+  const run = r.run
+  let routeId: string | undefined
+  let title = ''
+  if (run.routeName) {
+    const hit = routes().find((x) => norm(x.data.name) === norm(run.routeName!))
+    if (hit) routeId = hit.id
+    else {
+      title = run.routeName
+      warnings.push(`Fant ingen rute som heter «${run.routeName}» – brukes som tittel. Velg en rute under om det var en av dem.`)
+    }
+  }
+  const route = routeById(routeId)
+  const km = run.distanceKm ?? route?.distanceKm
+  const durationSec = run.durationSec ?? (r.duration ? r.duration * 60 : undefined)
+  const date = r.date ? new Date(r.date.y, r.date.m - 1, r.date.d, r.date.hh, r.date.mm) : new Date()
+  const values = emptyRunValues(userId, {
+    date: toLocalInput(date),
+    dateTouched: !!r.date,
+    routeId: run.distanceKm && route && run.distanceKm !== route.distanceKm ? undefined : routeId,
+    distance: km ? String(km).replace('.', ',') : '',
+    distanceEst: !!run.distanceEst,
+    time: durationSec ? fmtRunTime(durationSec) : '',
+    durationEst: !!run.durationEst,
+    runType: run.runType,
+    notes: r.note ?? '',
+    title,
+  })
+  return { values, warnings, errors }
+}
+
+function RunImport({ draft, onChange, onDone, onCancel }: { draft: RunDraft; onChange: (d: RunDraft) => void; onDone: () => void; onCancel: () => void }) {
+  const input = runInputFrom(draft.values)
+  const ok = hasDistance(input.run) || hasDuration(input.run)
+  const day = (iso: string) => new Date(iso).toDateString()
+  const duplicate = runs(draft.values.userId).some((w) => {
+    const r = w.data.run ?? {}
+    if (day(w.data.startedAt) !== day(input.startedAt)) return false
+    if (input.run.routeId && r.routeId === input.run.routeId) return true
+    return !!input.run.distanceKm && !!r.distanceKm && Math.abs(r.distanceKm - input.run.distanceKm) < 0.05
+  })
+  return (
+    <>
+      <TopBar title="Importer løpetur" onBack={onCancel} />
+      <div className="page stack">
+        {draft.errors.length > 0 && (
+          <div className="card small" style={{ background: 'color-mix(in srgb, var(--bad) 14%, var(--rubber))' }}>
+            <b>Noen linjer kunne ikke tolkes</b> – resten er importert:
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              {draft.errors.map((e, i) => (
+                <li key={i}>
+                  Linje {e.line}: «{e.text}» – {e.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {draft.warnings.map((w, i) => (
+          <div key={i} className="card small" style={{ background: 'color-mix(in srgb, var(--gold) 14%, var(--rubber))' }}>
+            ⚠️ {w}
+          </div>
+        ))}
+        {duplicate && (
+          <div className="card small" style={{ background: 'color-mix(in srgb, var(--gold) 14%, var(--rubber))' }}>
+            ⚠️ <b>Denne løpeturen ser ut til å være lagret fra før</b> (samme dag og distanse/rute). Du kan lagre likevel.
+          </div>
+        )}
+        <RunForm values={draft.values} onChange={(values) => onChange({ ...draft, values })} showUser />
+        <button
+          className="btn primary big block"
+          disabled={!ok}
+          onClick={() => {
+            const id = saveRun(input)
+            notifyFinished(id)
+            toast(`Løpeturen er lagret for ${userById(draft.values.userId).name}`)
+            onDone()
+          }}
+        >
+          Lagre løpetur
+        </button>
+        <button className="btn ghost block" onClick={onCancel}>
+          Avbryt
+        </button>
+      </div>
     </>
   )
 }

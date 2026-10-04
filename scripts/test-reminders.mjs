@@ -54,5 +54,19 @@ ok('defaults: Oslo 19:00, never trained → first-workout message', d.length ===
 d = decideReminders(new Date('2026-10-07T21:30:00Z'), USERS, { subs: [sub('erik')], profiles: [], workouts: [], logs: [] })
 ok('not after 22 local', d.length === 0)
 
+// goals with running
+import('../api/_reminders.js').then(() => {})
+const { goalRemaining } = await import('../api/_reminders.js')
+ok('goal split remaining', goalRemaining({ goal: { mode: 'split', strength: 3, run: 2 } }, 1, 1) === '2 styrkeøkter og 1 løpetur', goalRemaining({ goal: { mode: 'split', strength: 3, run: 2 } }, 1, 1))
+ok('goal min remaining', goalRemaining({ goal: { mode: 'min', total: 4, runMin: 1 } }, 3, 0) === '1 økt og minst 1 løpetur')
+ok('goal legacy weeklyGoal', goalRemaining({ weeklyGoal: 2 }, 2, 0) === null)
+ok('goal km', goalRemaining({ goal: { mode: 'total', total: 1, km: 10 } }, 0, 1, [{ data: { kind: 'run', run: { distanceKm: 6.5 } } }]) === '3,5 km')
+d = decideReminders(now, USERS, {
+  subs: [sub('felix')],
+  profiles: [{ id: 'profile:felix', data: { notify: { tz, hour: 18, days: 2 }, goal: { mode: 'split', strength: 2, run: 2 } } }],
+  workouts: [{ id: 'r1', data: { userId: 'felix', kind: 'run', status: 'done', startedAt: '2026-10-05T08:00:00Z', run: { distanceKm: 5 } } }],
+  logs: [],
+})
+ok('reminder counts a run as last workout and mentions split goal', d[0]?.payload.body === '2 dager siden sist. Du mangler 2 styrkeøkter og 1 løpetur på ukesmålet.', d[0]?.payload.body)
 console.log(fail ? `\n${fail} FEIL` : '\nAlle påminnelsestester OK')
 process.exit(fail ? 1 : 0)

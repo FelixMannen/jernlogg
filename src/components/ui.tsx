@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { userById } from '../lib/domain'
 
@@ -153,7 +154,8 @@ export function Sheet({ title, onClose, children, actions }: { title: string; on
       document.body.style.overflow = ''
     }
   }, [onClose])
-  return (
+  // portal: sheets opened from inside sticky headers must not inherit their stacking context
+  return createPortal(
     <div className="scrim" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-label={title}>
         <div className="sheet-head">
@@ -165,7 +167,8 @@ export function Sheet({ title, onClose, children, actions }: { title: string; on
         </div>
         <div className="sheet-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

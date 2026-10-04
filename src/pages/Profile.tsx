@@ -29,6 +29,7 @@ import {
 } from '../lib/stats'
 import { addBodyweight, setProfile, sendFeedback, feedbackList } from '../lib/actions'
 import { FeedItem } from './Feed'
+import { GoalEditor, GoalCard, RunSection } from './ProfileRun'
 import { NotificationsSection } from '../components/Notifications'
 
 export function ProfilePage({ userId }: { userId?: string }) {
@@ -106,7 +107,9 @@ export function ProfilePage({ userId }: { userId?: string }) {
 
         <Badges userId={uid} color={u.color} />
         <Heatmap userId={uid} color={u.color} />
+        <GoalCard userId={uid} color={u.color} />
         <MuscleGroups userId={uid} color={u.color} />
+        <RunSection userId={uid} color={u.color} mine={mine} />
 
         <section className="card">
           <div className="spread" style={{ marginBottom: 4 }}>
@@ -247,16 +250,7 @@ function SettingsSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: (
             ))}
           </div>
         </div>
-        <div className="field">
-          <span>Ukesmål (økter per uke)</span>
-          <div className="chips" style={{ flexWrap: 'wrap', margin: 0, padding: 0 }}>
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <button key={n} className={`chip ${weeklyGoal(me) === n ? 'on' : ''}`} onClick={() => setProfile(me, { weeklyGoal: n })}>
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
+        <GoalEditor />
         <div className="list">
           <button
             className="list-item"

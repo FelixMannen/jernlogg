@@ -98,3 +98,17 @@
   - «David trente akkurat 💪 – din tur!» når en kompis fullfører en økt
 - Vercel-funksjoner: `/api/push-test`, `/api/notify`, `/api/cron`, `/api/health`; Supabase `pg_cron` hver time + Vercel Cron daglig som reserve
 - Nye samlinger i `docs`: `push_subscriptions`, `push_log` – ingen endring av eksisterende data eller skjema
+
+## Runde 18 – løping (fase 1) + rediger/slett
+- Tilbakemelding fra David: ⋯-meny på egne økter (i feeden og på øktsiden) med «Rediger øvelser og sett», «Endre dato, tid, tittel og notat», «Lagre som mal» og «Slett»
+- Løping som egen økttype: Start → Styrke / Løpetur
+- Logg løpetur med distanse og/eller tid, «ca.» for anslag, tempo regnes ut, type, følelse, notat, høydemeter og puls
+- Ruter (f.eks. Elverunden) med egen rekordliste – velg rute, skriv bare tiden
+- Stoppeklokke med pause som tåler låst skjerm
+- Løpekort i feeden, egen løpeside med rute-rekorder, PR-er (lengste tur, beste 5/10 km/halvmaraton, rute-PR)
+- Topplister: bryter Styrke | Løping (km uke/måned, rute-rekorder, lengste tur, beste tider, beste snittempo)
+- Profil: løpeseksjon (km per uke, rekorder, ruter, turer som mangler data)
+- Ukesmål: Samlet / Fordelt / Med minimum + valgfritt km-mål, og «nådd X uker på rad»
+- Import: `Løp: 8.2km 42:10 rolig` / `Løp: Elverunden 29:15`
+- Varsler: «Erik løp akkurat Elverunden 🏃 – din tur!», og påminnelser tar hensyn til ukesmål per type
+- Fiks: ark (sheets) åpnet fra toppmenyen havnet under bunnmenyen

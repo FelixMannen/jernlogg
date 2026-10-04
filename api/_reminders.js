@@ -67,8 +67,10 @@ export function decideReminders(now, users, { subs, profiles, workouts, logs }) 
 
     // context for a more useful message
     const weekStart = startOfIsoWeek(today)
-    const goal = (profile && profile.weeklyGoal) || 3
-    const doneThisWeek = done.filter((d) => d >= weekStart).length
+    const inWeek = mine.filter((w) => w.data.status === 'done' && localParts(new Date(w.data.startedAt), p.tz).date >= weekStart)
+    const doneThisWeek = inWeek.length
+    const runsThisWeek = inWeek.filter((w) => w.data.kind === 'run').length
+    const remaining = goalRemaining(profile, doneThisWeek - runsThisWeek, runsThisWeek, inWeek)
     const friendWeek = Object.keys(users)
       .filter((u) => u !== userId)
       .map((u) => ({
@@ -77,11 +79,31 @@ export function decideReminders(now, users, { subs, profiles, workouts, logs }) 
       }))
       .sort((a, b) => b.n - a.n)[0]
     let body
-    if (!last) body = 'Første økt venter – velg en mal og kjør på 💪'
+    if (!last) body = 'Første økt venter – velg en mal eller ta en løpetur 💪'
     else if (friendWeek && friendWeek.n > doneThisWeek) body = `${users[friendWeek.u]} har ${friendWeek.n} ${friendWeek.n === 1 ? 'økt' : 'økter'} denne uka, du har ${doneThisWeek}. Din tur!`
-    else if (doneThisWeek < goal) body = `${days} dager siden sist. Du mangler ${goal - doneThisWeek} ${goal - doneThisWeek === 1 ? 'økt' : 'økter'} på ukesmålet.`
+    else if (remaining) body = `${days} dager siden sist. Du mangler ${remaining} på ukesmålet.`
     else body = `${days} dager siden sist – en kort økt holder 💪`
     out.push({ userId, logId, payload: { title: 'Du burde trene i dag 💪', body, url: '/#/okt', tag: 'reminder' } })
   }
   return out
+}
+
+/** What is left of the weekly goal, e.g. "1 løpetur og 2 styrkeøkter" (null when met). */
+export function goalRemaining(profile, strength, run, inWeek = []) {
+  const g = (profile && profile.goal) || { mode: 'total', total: (profile && profile.weeklyGoal) || 3 }
+  const parts = []
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+  if (g.mode === 'split') {
+    if (g.strength && strength < g.strength) parts.push(plural(g.strength - strength, 'styrkeøkt', 'styrkeøkter'))
+    if (g.run && run < g.run) parts.push(plural(g.run - run, 'løpetur', 'løpeturer'))
+  } else {
+    const total = g.total || 3
+    if (strength + run < total) parts.push(plural(total - strength - run, 'økt', 'økter'))
+    if (g.mode === 'min' && g.runMin && run < g.runMin) parts.push(`minst ${plural(g.runMin - run, 'løpetur', 'løpeturer')}`)
+  }
+  if (g.km) {
+    const km = inWeek.filter((w) => w.data.kind === 'run').reduce((a, w) => a + ((w.data.run && w.data.run.distanceKm) || 0), 0)
+    if (km < g.km) parts.push(`${String(Math.round((g.km - km) * 10) / 10).replace('.', ',')} km`)
+  }
+  return parts.length ? parts.join(' og ') : null
 }

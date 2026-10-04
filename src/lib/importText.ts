@@ -4,13 +4,73 @@
 export type ParsedSet = { reps: number; weight: number }
 export type ParsedExercise = { name: string; sets: ParsedSet[]; line: number }
 export type ParseError = { line: number; text: string; message: string }
+export type ParsedRun = {
+  distanceKm?: number
+  distanceEst?: boolean
+  durationSec?: number
+  durationEst?: boolean
+  routeName?: string // leftover text, matched against saved routes by the app
+  runType?: 'rolig' | 'intervall' | 'terskel' | 'langtur' | 'konkurranse'
+  line: number
+}
 export type ParseResult = {
   user?: string // raw value of "bruker:"
   date?: { y: number; m: number; d: number; hh: number; mm: number }
   duration?: number // minutes
   note?: string
   exercises: ParsedExercise[]
+  run?: ParsedRun // "Løp: 8.2km 42min" / "Løp: Elverunden 41:30"
   errors: ParseError[]
+}
+
+const RUN_KEYS = new Set(['løp', 'løping', 'løpetur', 'lop', 'loping', 'run', 'jogg', 'jogging'])
+const RUN_TYPES = ['rolig', 'intervall', 'terskel', 'langtur', 'konkurranse'] as const
+const EST = String.raw`(~\s*|ca\.?\s*|cirka\s*)?`
+
+/** Parse the value of a run line. Returns null if neither distance, time nor a name was found. */
+export function parseRunValue(value: string): Omit<ParsedRun, 'line'> | null {
+  let rest = ' ' + value + ' '
+  const out: Omit<ParsedRun, 'line'> = {}
+  const take = (re: RegExp) => {
+    const m = rest.match(re)
+    if (m) rest = rest.replace(m[0], ' ')
+    return m
+  }
+  let m = take(new RegExp(EST + String.raw`(\d+(?:[.,]\d+)?)\s*km\b`, 'i'))
+  if (m) {
+    out.distanceKm = parseFloat(m[2].replace(',', '.'))
+    if (m[1]) out.distanceEst = true
+  }
+  m = take(new RegExp(EST + String.raw`(\d{1,2}):(\d{2})(?::(\d{2}))?(?![\d])`, 'i'))
+  if (m) {
+    out.durationSec = m[5] != null ? +m[2] * 3600 + +m[3] * 60 + +m[4] : +m[2] * 60 + +m[3]
+    // "1:05:00" has 3 parts: groups are h, m, s; "42:10" has 2 parts: m, s
+    if (m[4] != null) out.durationSec = +m[2] * 3600 + +m[3] * 60 + +m[4]
+    if (m[1]) out.durationEst = true
+  } else {
+    m = take(new RegExp(EST + String.raw`(\d+(?:[.,]\d+)?)\s*(?:t|h|time|timer)\b(?:\s*(\d+)\s*(?:min|minutter|m)\b)?`, 'i'))
+    if (m) {
+      out.durationSec = Math.round(parseFloat(m[2].replace(',', '.')) * 3600 + (m[3] ? +m[3] * 60 : 0))
+      if (m[1]) out.durationEst = true
+    } else {
+      m = take(new RegExp(EST + String.raw`(\d+(?:[.,]\d+)?)\s*(?:min|minutter|minutt|m)\b`, 'i'))
+      if (m) {
+        out.durationSec = Math.round(parseFloat(m[2].replace(',', '.')) * 60)
+        if (m[1]) out.durationEst = true
+      }
+    }
+  }
+  for (const t of RUN_TYPES) {
+    const tm = take(new RegExp(String.raw`\b${t}\b`, 'i'))
+    if (tm) {
+      out.runType = t
+      break
+    }
+  }
+  const name = rest.replace(/[,;]/g, ' ').replace(/\s+/g, ' ').trim()
+  if (name) out.routeName = name
+  if (out.distanceKm == null && out.durationSec == null && !out.routeName) return null
+  return out
 }
 
 /** Decode the d= value of an import link the way an AI tends to produce it. */
@@ -87,6 +147,13 @@ export function parseWorkoutText(text: string): ParseResult {
     }
     if (!key) {
       res.errors.push({ line: lineNo, text: line, message: 'mangler navn på øvelsen før «:»' })
+      return
+    }
+    if (RUN_KEYS.has(k)) {
+      const r = parseRunValue(value)
+      if (!r) res.errors.push({ line: lineNo, text: line, message: 'fant verken distanse (f.eks. 8.2km), tid (f.eks. 42min eller 41:30) eller rute' })
+      else if (res.run) res.errors.push({ line: lineNo, text: line, message: 'bare én løpetur per import – denne linjen er hoppet over' })
+      else res.run = { ...r, line: lineNo }
       return
     }
     const sets: ParsedSet[] = []
