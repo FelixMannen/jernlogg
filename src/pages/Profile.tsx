@@ -279,6 +279,16 @@ function SettingsSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: (
           >
             Eksporter mine sett (CSV)
           </button>
+          <button
+            className="list-item"
+            onClick={() => {
+              const docs = allDocs()
+              download(`jernlogg-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), docs }, null, 1), 'application/json')
+              toast(`Backup lastet ned (${docs.length} rader)`)
+            }}
+          >
+            Last ned full backup av alle data (JSON)
+          </button>
           <button className="list-item" onClick={() => go('verktoy')}>
             Verktøy: skive- og 1RM-kalkulator
           </button>

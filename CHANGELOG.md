@@ -70,3 +70,6 @@
 
 ## Runde 13
 - Supersett: koble en øvelse med neste i øvelsesmenyen. Kortene henger sammen, hviletimeren starter først etter siste øvelse i supersettet, og appen hopper til neste øvelse etter hvert sett
+
+## Runde 14
+- «Last ned full backup av alle data» under Profil → ⋯ (alle økter, maler, reaksjoner osv. for alle tre, som JSON)
