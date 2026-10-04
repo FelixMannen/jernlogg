@@ -112,3 +112,9 @@
 - Import: `Løp: 8.2km 42:10 rolig` / `Løp: Elverunden 29:15`
 - Varsler: «Erik løp akkurat Elverunden 🏃 – din tur!», og påminnelser tar hensyn til ukesmål per type
 - Fiks: ark (sheets) åpnet fra toppmenyen havnet under bunnmenyen
+
+## Runde 19 – tilbakemeldinger fra Erik
+- Søketreff og knapper havnet bak tastaturet på mobil: alle ark (øvelsesvelger, menyer osv.) holder seg nå innenfor den synlige delen av skjermen over tastaturet, feltet du skriver i scrolles inn i synet, og bunnmenyen/hviletimeren skjules mens tastaturet er oppe. Android får i tillegg `interactive-widget=resizes-content`
+- Fjernet +/- knappene som dukket opp under kg/reps når man skrev – logge-raden flytter seg ikke lenger. Oppvarming, skiver og «Slett sett» ligger nå bak et trykk på settnummeret
+- Fiks: appen startet ikke alltid uten nett første gang etter installasjon (service workeren cacher nå JS/CSS med en gang og ignorerer Vary-header ved oppslag)
+- Ny test: `scripts/keyboard-e2e.mjs` simulerer iPhone-tastaturet

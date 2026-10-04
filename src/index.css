@@ -1456,3 +1456,22 @@ textarea.input {
 .goal-pips i.run {
   background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.28) 0 3px, transparent 3px 6px);
 }
+
+/* keep overlays inside the visible area (above the on-screen keyboard) */
+.scrim {
+  top: var(--vv-top, 0px);
+  bottom: auto;
+  height: var(--vv-h, 100dvh);
+}
+.sheet {
+  max-height: calc(var(--vv-h, 100dvh) - 24px);
+}
+.kb-open .sheet {
+  border-radius: 20px;
+  margin-bottom: 4px;
+}
+/* while typing, hide the bottom nav and rest pill so they never cover inputs */
+.kb-open .nav,
+.kb-open .rest {
+  display: none;
+}

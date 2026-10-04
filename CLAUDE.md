@@ -21,6 +21,8 @@ Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-t
 - `npm run build` og `node scripts/smoke.mjs --seed <mappe>` (Playwright, mobilviewport, lokal modus) før hver push.
 - Løping/rediger/slett: `node scripts/run-e2e.mjs` (rute, stoppeklokke, ufullstendige data, topplister, ukesmål, rediger/slett, import av løpetur).
 - Endrer du import fra tekst: `npx tsx scripts/test-import.ts` (parser) og `node scripts/import-e2e.mjs` (hele #/import-flyten). Formatet er beskrevet i `src/lib/importText.ts` og må være bakoverkompatibelt – lenker Claude har laget skal fortsette å virke.
+- Tastatur/mobil: `node scripts/keyboard-e2e.mjs` simulerer iPhone-tastaturet. Regel (fra Erik): alt man kan trykke på mens man skriver – søketreff, knapper i ark – skal alltid vises OVER tastaturet. Ark/overlays bruker `--vv-top`/`--vv-h` (synlig viewport), aldri `bottom: 0` mot hele skjermen.
+- Ikke legg ting som dukker opp/flytter layout i logge-raden når man fokuserer kg/reps (Erik: «forstyrrer logge-flyten»). Ekstra valg for et sett ligger bak settnummeret.
 - Se på skjermbildene. Ingen konsollfeil, ingen horisontal scroll.
 - Push til `main` → Vercel deployer automatisk til https://jernlogg.vercel.app
 - Norsk bokmål i UI, mørkt tema, mobil først.

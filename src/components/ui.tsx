@@ -407,3 +407,34 @@ export function PlateBar({ total, bar = 20 }: { total: number; bar?: number }) {
     </span>
   )
 }
+
+/* ---------- on-screen keyboard ----------
+ * iOS does not shrink the layout viewport when the keyboard opens, so anything anchored to the
+ * bottom (sheets, pickers) ends up behind it. We mirror the *visual* viewport into CSS variables
+ * (--vv-top / --vv-h / --kb) and use them for overlays, and keep focused fields in view. */
+export function installKeyboardAwareness() {
+  const vv = window.visualViewport
+  const root = document.documentElement
+  const apply = () => {
+    if (!vv) return
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+    root.style.setProperty('--vv-top', `${vv.offsetTop}px`)
+    root.style.setProperty('--vv-h', `${vv.height}px`)
+    root.style.setProperty('--kb', `${kb}px`)
+    root.classList.toggle('kb-open', kb > 80)
+  }
+  if (vv) {
+    vv.addEventListener('resize', apply)
+    vv.addEventListener('scroll', apply)
+    apply()
+  }
+  // after the keyboard has animated in, make sure the field being typed in is visible
+  document.addEventListener('focusin', (e) => {
+    const el = e.target as HTMLElement
+    if (!el.matches?.('input:not([type=checkbox]):not([type=file]), textarea')) return
+    setTimeout(() => {
+      apply()
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }, 320)
+  })
+}

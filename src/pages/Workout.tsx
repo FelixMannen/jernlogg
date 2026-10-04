@@ -305,6 +305,7 @@ function ExerciseCard({
   const lastWarm = last?.sets.filter((s) => s.warmup) ?? []
   const hint = ex.sets.some((s) => s.done) ? null : progressionHint(me, ex.exerciseId, workoutId)
   const [menu, setMenu] = useState(false)
+  const [setMenuFor, setSetMenu] = useState<null | { uid: string; label: string; prevWeight: number | null }>(null)
   const [noteOpen, setNoteOpen] = useState(!!ex.note)
 
   const upd = (fn: (e: WorkoutExercise) => void) =>
@@ -400,16 +401,15 @@ function ExerciseCard({
         const label = s.warmup ? `V${++warmIdx}` : String(++workIdx)
         const prevRef = s.warmup ? lastWarm[warmIdx - 1] : lastWork[workIdx - 1]
         const isPR = s.done && livePRCheck(me, ex.exerciseId, s, workoutId, allSetsThisExercise.filter((o) => (o.doneAt ?? '') < (s.doneAt ?? ''))).length > 0
-        const focused = focus?.set === s.uid
         const isNext = !s.done && ex.sets.find((x) => !x.done)?.uid === s.uid && ex.sets.some((x) => x.done)
         return (
           <div key={s.uid}>
             <div className={`set-grid set-row ${s.done ? 'done' : ''} ${isPR ? 'pr' : ''} ${isNext ? 'next' : ''}`}>
               <button
                 className={`set-idx ${s.warmup ? 'warm' : ''}`}
-                onClick={() => updSet(s.uid, (x) => void (x.warmup = !x.warmup))}
-                aria-label={s.warmup ? 'Oppvarmingssett – trykk for arbeidssett' : 'Trykk for å gjøre til oppvarmingssett'}
-                title="Trykk for oppvarming"
+                onClick={() => setSetMenu({ uid: s.uid, label, prevWeight: prevRef?.weight ?? null })}
+                aria-label={`Sett ${label}: oppvarming, skiver eller slett`}
+                title="Oppvarming, skiver eller slett"
               >
                 {label}
               </button>
@@ -440,51 +440,6 @@ function ExerciseCard({
                 <Icon.check />
               </button>
             </div>
-            {focused && (
-              <div className="stepper" onPointerDown={(e) => e.preventDefault()}>
-                {(focus!.field === 'weight' ? [-5, -2.5, 2.5, 5] : [-2, -1, 1, 2]).map((d) => (
-                  <button
-                    key={d}
-                    onClick={() =>
-                      updSet(s.uid, (x) => {
-                        const cur = (focus!.field === 'weight' ? x.weight ?? prevRef?.weight : x.reps ?? prevRef?.reps) ?? 0
-                        const nv = Math.max(0, Math.round((cur + d) * 100) / 100)
-                        if (focus!.field === 'weight') x.weight = nv
-                        else x.reps = nv
-                      })
-                    }
-                  >
-                    {d > 0 ? '+' : '−'}
-                    {String(Math.abs(d)).replace('.', ',')}
-                  </button>
-                ))}
-              </div>
-            )}
-            {focused && focus!.field === 'weight' && info.equipment === 'Stang' && (s.weight ?? prevRef?.weight ?? 0) > 0 && (
-              <PlateBar total={(s.weight ?? prevRef?.weight)!} />
-            )}
-            {focused && (
-              <div className="row" style={{ justifyContent: 'space-between', padding: '0 0 6px' }} onPointerDown={(e) => e.preventDefault()}>
-                <button
-                  className="btn small ghost"
-                  onClick={() => {
-                    const idx = ex.sets.findIndex((x) => x.uid === s.uid)
-                    const removed = { ...s }
-                    upd((e) => void (e.sets = e.sets.filter((x) => x.uid !== s.uid)))
-                    setFocus(null)
-                    toast('Settet er slettet', undefined, {
-                      label: 'Angre',
-                      run: () => upd((e) => void e.sets.splice(Math.min(idx, e.sets.length), 0, removed)),
-                    })
-                  }}
-                >
-                  <Icon.trash /> Slett sett
-                </button>
-                <button className="btn small ghost" onClick={() => setFocus(null)}>
-                  Ferdig
-                </button>
-              </div>
-            )}
           </div>
         )
       })}
@@ -500,6 +455,51 @@ function ExerciseCard({
       >
         + Legg til sett
       </button>
+      {setMenuFor &&
+        (() => {
+          const cur = ex.sets.find((x) => x.uid === setMenuFor.uid)
+          if (!cur) return null
+          const weight = cur.weight ?? setMenuFor.prevWeight ?? 0
+          return (
+            <Sheet title={`${info.name} · sett ${setMenuFor.label}`} onClose={() => setSetMenu(null)}>
+              {info.equipment === 'Stang' && weight > 0 && (
+                <div className="card small" style={{ marginBottom: 12 }}>
+                  <div className="muted tiny" style={{ marginBottom: 2 }}>
+                    Skiver for {fmtKg(weight)} kg
+                  </div>
+                  <PlateBar total={weight} />
+                </div>
+              )}
+              <div className="list">
+                <button
+                  className="list-item"
+                  onClick={() => {
+                    updSet(cur.uid, (x) => void (x.warmup = !x.warmup))
+                    setSetMenu(null)
+                  }}
+                >
+                  <Icon.timer /> {cur.warmup ? 'Gjør til arbeidssett' : 'Gjør til oppvarmingssett'}
+                </button>
+                <button
+                  className="list-item"
+                  style={{ color: '#ff8a80' }}
+                  onClick={() => {
+                    const idx = ex.sets.findIndex((x) => x.uid === cur.uid)
+                    const removed = { ...cur }
+                    upd((e) => void (e.sets = e.sets.filter((x) => x.uid !== cur.uid)))
+                    setSetMenu(null)
+                    toast('Settet er slettet', undefined, {
+                      label: 'Angre',
+                      run: () => upd((e) => void e.sets.splice(Math.min(idx, e.sets.length), 0, removed)),
+                    })
+                  }}
+                >
+                  <Icon.trash /> Slett sett
+                </button>
+              </div>
+            </Sheet>
+          )
+        })()}
       {menu && (
         <Sheet title={info.name} onClose={() => setMenu(false)}>
           <div className="list">
@@ -702,7 +702,7 @@ function Tip() {
     <div className="card small" style={{ marginBottom: 12, background: 'var(--me-soft)' }}>
       <div className="spread" style={{ alignItems: 'flex-start' }}>
         <div>
-          <b>Tips:</b> Trykk på settnummeret for å gjøre det til oppvarming (V). Trykk på «Forrige» for å kopiere forrige gang. Hviletimeren starter når du huker av.
+          <b>Tips:</b> Trykk på settnummeret for oppvarming (V), skiver og sletting. Trykk på «Forrige» for å kopiere forrige gang. Hviletimeren starter når du huker av.
         </div>
         <button
           className="icon-btn"

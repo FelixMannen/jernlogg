@@ -33,9 +33,12 @@ ok('push: "Slå på varsler" button shown (state off)', btn === 1)
 await page.locator('#varsler').scrollIntoViewIfNeeded()
 await page.screenshot({ path: `${out}/android-varsler.png` })
 // offline start from cache
+const failed = []
+page.on('requestfailed', (r) => failed.push(r.url().replace(base, '') + ' ' + r.failure()?.errorText))
 await ctx.setOffline(true)
 await page.reload()
-ok('app starts offline from cache', await page.locator('.nav').count().then((n) => n > 0))
+const offOk = await page.waitForSelector('.nav', { timeout: 10000 }).then(() => true, () => false)
+ok('app starts offline from cache', offOk, offOk ? '' : 'failed requests: ' + failed.join(' | '))
 await ctx.setOffline(false)
 
 // --- iPhone Safari (not installed) ---

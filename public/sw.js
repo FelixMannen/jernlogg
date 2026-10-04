@@ -3,16 +3,24 @@
 // - Hashed assets (/assets/*-HASH.js|css) are immutable, so cache-first is safe for them.
 // - Push notifications + tap-to-open.
 // Only registered in production builds (see src/main.tsx).
-const VERSION = 'v2'
+const VERSION = 'v3'
 const CACHE = `jernlogg-${VERSION}`
 
+// Pre-cache the app shell *and* the hashed JS/CSS it references, so the app can start offline
+// even if the very first visit happened before the service worker was in control.
+async function precache() {
+  const c = await caches.open(CACHE)
+  await c.addAll(['/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png', '/badge-96.png']).catch(() => {})
+  const res = await fetch('/', { cache: 'no-store' })
+  if (!res.ok) return
+  const html = await res.clone().text()
+  await c.put('/', res)
+  const assets = [...new Set(html.match(/\/assets\/[^"' )]+/g) || [])]
+  await c.addAll(assets).catch(() => {})
+}
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches
-      .open(CACHE)
-      .then((c) => c.addAll(['/', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png', '/badge-96.png']))
-      .catch(() => {}),
-  )
+  e.waitUntil(precache().catch(() => {}))
   self.skipWaiting()
 })
 
@@ -32,7 +40,7 @@ async function networkFirst(req, cacheKey) {
     if (res.ok) cache.put(cacheKey || req, res.clone())
     return res
   } catch {
-    const hit = await cache.match(cacheKey || req)
+    const hit = await cache.match(cacheKey || req, { ignoreVary: true })
     if (hit) return hit
     throw new Error('offline and not cached')
   }
@@ -40,7 +48,7 @@ async function networkFirst(req, cacheKey) {
 
 async function cacheFirst(req) {
   const cache = await caches.open(CACHE)
-  const hit = await cache.match(req)
+  const hit = await cache.match(req, { ignoreVary: true })
   if (hit) return hit
   const res = await fetch(req)
   if (res.ok) cache.put(req, res.clone())
