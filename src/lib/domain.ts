@@ -129,6 +129,7 @@ export type Workout = {
   templateId?: string
   notes?: string
   exercises: WorkoutExercise[]
+  reopenedFrom?: string // set while a finished workout is being edited (original endedAt)
 }
 
 export type TemplateItem = { exerciseId: string; sets: number; reps: number }

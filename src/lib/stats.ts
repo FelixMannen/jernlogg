@@ -124,7 +124,7 @@ export function activeWorkout(userId: string): Doc<Workout> | undefined {
 export function activeWorkouts(): Doc<Workout>[] {
   // ignore stale sessions older than 6 hours
   const cutoff = Date.now() - 6 * 3600 * 1000
-  return workouts().filter((w) => w.data.status === 'active' && Date.parse(w.data.startedAt) > cutoff)
+  return workouts().filter((w) => w.data.status === 'active' && !w.data.reopenedFrom && Date.parse(w.data.startedAt) > cutoff)
 }
 
 export function templates(): Doc<Template>[] {

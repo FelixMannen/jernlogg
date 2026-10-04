@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { MeContext, useMe, useRoute, Icon, ToastHost, ConfirmHost, useNow, vibrate } from './components/ui'
+import { MeContext, useMe, useRoute, Icon, ToastHost, ConfirmHost, useNow, vibrate, beep } from './components/ui'
 import { init, useStoreVersion, getStatus } from './lib/store'
 import { USERS, userById } from './lib/domain'
 import { activeWorkout, fmtDuration } from './lib/stats'
@@ -109,8 +109,9 @@ function Shell() {
       page = <FeedPage />
   }
   const st = getStatus()
+  const resting = !!useSyncExternalStore(subscribeRest, getRest)
   return (
-    <div className="app">
+    <div className={`app ${resting ? 'resting' : ''}`}>
       {st.status === 'loading' ? <div className="empty">Laster…</div> : page}
       <RestTimer />
       <Nav current={r0 || 'feed'} />
@@ -162,6 +163,7 @@ function RestTimer() {
   if (left <= 0 && buzzed !== rest.endAt) {
     setBuzzed(rest.endAt)
     vibrate([200, 100, 200])
+    beep(3)
   }
   if (left < -30000) {
     setTimeout(stopRest, 0)

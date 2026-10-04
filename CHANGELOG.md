@@ -9,3 +9,10 @@
 - Profil: statistikk, volum per uke, rekorder, kroppsvekt-graf, eksport JSON/CSV, hviletid-innstilling
 - Øvelsesside: e1RM/toppvekt/volum over tid, sammenlign alle tre, prosenttabell
 - Offline-kø: endringer lagres lokalt og synkes når nettet er tilbake
+
+## Runde 1
+- Skjermen holdes våken under økta (Wake Lock)
+- Pip-lyd når hvilen er over (i tillegg til vibrasjon – iPhone vibrerer ikke fra nettsider)
+- Skivekalkulator: når du redigerer kg på en stangøvelse vises skivene per side i riktige farger
+- Rediger fullførte økter (fikse feiltastinger i etterkant)
+- Hviletimeren dekker ikke lenger nederste innhold

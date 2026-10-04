@@ -55,7 +55,8 @@ export function finishWorkout(id: string) {
       .map((ex) => ({ ...ex, sets: ex.sets.filter((s) => s.done) }))
       .filter((ex) => ex.sets.length > 0)
     w.status = 'done'
-    w.endedAt = nowIso()
+    w.endedAt = w.reopenedFrom ?? nowIso()
+    delete w.reopenedFrom
   })
   stopRest()
 }
@@ -164,4 +165,15 @@ export function subscribeRest(cb: () => void) {
   return () => {
     restListeners.delete(cb)
   }
+}
+
+export function reopenWorkout(id: string): boolean {
+  const d = getDoc<Workout>(id)
+  if (!d) return false
+  if (activeWorkout(d.data.userId)) return false
+  updateWorkout(id, (w) => {
+    w.reopenedFrom = w.endedAt ?? nowIso()
+    w.status = 'active'
+  })
+  return true
 }

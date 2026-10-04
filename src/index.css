@@ -1023,3 +1023,43 @@ textarea.input {
 .list-item:disabled {
   opacity: 0.4;
 }
+
+/* plate visualiser */
+.platebar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 34px;
+  padding: 2px 4px 6px;
+}
+.pb-bar {
+  width: 22px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--chalk-2);
+}
+.pb-plate {
+  width: 16px;
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.pb-plate span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-num);
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1;
+}
+.pb-collar {
+  width: 6px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--steel);
+}
+.app.resting {
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 84px);
+}

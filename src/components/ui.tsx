@@ -292,3 +292,97 @@ export function useNow(intervalMs = 1000) {
   }, [intervalMs])
   return now
 }
+
+/* ---------- audio beep (works on iOS after a user gesture) ---------- */
+let audioCtx: AudioContext | null = null
+export function unlockAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+  } catch {}
+}
+export function beep(times = 3) {
+  if (!audioCtx) return
+  try {
+    for (let i = 0; i < times; i++) {
+      const t = audioCtx.currentTime + i * 0.22
+      const o = audioCtx.createOscillator()
+      const g = audioCtx.createGain()
+      o.frequency.value = i === times - 1 ? 1320 : 880
+      g.gain.setValueAtTime(0.0001, t)
+      g.gain.exponentialRampToValueAtTime(0.35, t + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16)
+      o.connect(g).connect(audioCtx.destination)
+      o.start(t)
+      o.stop(t + 0.18)
+    }
+  } catch {}
+}
+
+/* ---------- keep screen awake during a workout ---------- */
+export function useWakeLock(active: boolean) {
+  useEffect(() => {
+    if (!active || !('wakeLock' in navigator)) return
+    let lock: any = null
+    let cancelled = false
+    const req = async () => {
+      try {
+        lock = await (navigator as any).wakeLock.request('screen')
+      } catch {}
+    }
+    const onVis = () => document.visibilityState === 'visible' && !cancelled && req()
+    req()
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVis)
+      try {
+        lock?.release()
+      } catch {}
+    }
+  }, [active])
+}
+
+/* ---------- plates ---------- */
+export const PLATES: { kg: number; color: string; h: number }[] = [
+  { kg: 25, color: '#E5483D', h: 30 },
+  { kg: 20, color: '#3D7BEA', h: 30 },
+  { kg: 15, color: '#EDB92E', h: 27 },
+  { kg: 10, color: '#4fbf7a', h: 24 },
+  { kg: 5, color: '#eceae4', h: 19 },
+  { kg: 2.5, color: '#c94a3f', h: 15 },
+  { kg: 1.25, color: '#9aa1aa', h: 12 },
+]
+export function platesFor(total: number, bar = 20): { plates: number[]; rest: number } {
+  let side = (total - bar) / 2
+  const plates: number[] = []
+  if (side <= 0) return { plates, rest: 0 }
+  for (const p of PLATES) {
+    while (side >= p.kg - 1e-9) {
+      plates.push(p.kg)
+      side -= p.kg
+    }
+  }
+  return { plates, rest: Math.round(side * 100) / 100 }
+}
+export function PlateBar({ total, bar = 20 }: { total: number; bar?: number }) {
+  const { plates, rest } = platesFor(total, bar)
+  if (total < bar) return <span className="tiny muted">Lettere enn stanga ({bar} kg)</span>
+  return (
+    <span className="platebar" aria-label={`Per side: ${plates.join(', ') || 'ingen skiver'}`}>
+      <span className="pb-bar" />
+      {plates.map((p, i) => {
+        const P = PLATES.find((x) => x.kg === p)!
+        return (
+          <span key={i} className="pb-plate" style={{ background: P.color, height: P.h }} title={`${p} kg`}>
+            <span>{String(p).replace('.', ',')}</span>
+          </span>
+        )
+      })}
+      <span className="pb-collar" />
+      <span className="tiny muted" style={{ marginLeft: 8 }}>
+        per side{rest ? ` (+${String(rest).replace('.', ',')} kg mangler)` : ''}
+      </span>
+    </span>
+  )
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useMe, TopBar, Icon, go, confirmDialog, toast, confetti, vibrate, useNow, Sheet } from '../components/ui'
+import { useMe, TopBar, Icon, go, confirmDialog, toast, confetti, vibrate, useNow, Sheet, unlockAudio, useWakeLock, PlateBar } from '../components/ui'
 import { ExercisePicker } from '../components/ExercisePicker'
 import { getDoc, useStoreVersion } from '../lib/store'
 import { userById, type Workout, type WorkoutExercise, type SetEntry, type UserId } from '../lib/domain'
@@ -119,6 +119,8 @@ function Logger({ id }: { id: string }) {
   const [editTitle, setEditTitle] = useState(false)
   const [focus, setFocus] = useState<{ set: string; field: 'weight' | 'reps' } | null>(null)
   const restSeconds = profile(me).restSeconds ?? 90
+  useWakeLock(true)
+  const editing = !!w.reopenedFrom
 
   const finish = async () => {
     const done = workoutSetCount(w)
@@ -137,6 +139,11 @@ function Logger({ id }: { id: string }) {
       if (!ok) return
     }
     finishWorkout(id)
+    if (editing) {
+      toast('Endringene er lagret')
+      go(`w/${id}`)
+      return
+    }
     confetti([userById(me).color, '#eceae4', '#f2c14e'])
     go(`w/${id}/ferdig`)
   }
@@ -174,15 +181,15 @@ function Logger({ id }: { id: string }) {
         }
         right={
           <button className="btn small primary" onClick={finish}>
-            Fullfør
+            {editing ? 'Lagre' : 'Fullfør'}
           </button>
         }
       />
       <div className="page">
         <div className="wk-head">
           <div className="stat">
-            <div className="v">{fmtDuration(now - Date.parse(w.startedAt))}</div>
-            <div className="l">Tid</div>
+            <div className="v">{editing ? '✎' : fmtDuration(now - Date.parse(w.startedAt))}</div>
+            <div className="l">{editing ? 'Redigerer' : 'Tid'}</div>
           </div>
           <div className="stat">
             <div className="v">{fmtVolume(workoutVolume(w))}</div>
@@ -220,9 +227,11 @@ function Logger({ id }: { id: string }) {
           <button className="btn big block" onClick={() => setPicker({})}>
             <Icon.plus /> Legg til øvelse
           </button>
-          <button className="btn ghost block" onClick={discard}>
-            Forkast økt
-          </button>
+          {!editing && (
+            <button className="btn ghost block" onClick={discard}>
+              Forkast økt
+            </button>
+          )}
         </div>
       </div>
       {picker && (
@@ -288,6 +297,7 @@ function ExerciseCard({
   const allSetsThisExercise = w.exercises.filter((e) => e.exerciseId === ex.exerciseId).flatMap((e) => e.sets)
 
   const toggleDone = (s: SetEntry, prevRef?: SetEntry) => {
+    unlockAudio()
     if (s.done) {
       updSet(s.uid, (x) => {
         x.done = false
@@ -406,6 +416,9 @@ function ExerciseCard({
                   </button>
                 ))}
               </div>
+            )}
+            {focused && focus!.field === 'weight' && info.equipment === 'Stang' && (s.weight ?? prevRef?.weight ?? 0) > 0 && (
+              <PlateBar total={(s.weight ?? prevRef?.weight)!} />
             )}
             {focused && (
               <div className="row" style={{ justifyContent: 'space-between', padding: '0 0 6px' }} onPointerDown={(e) => e.preventDefault()}>

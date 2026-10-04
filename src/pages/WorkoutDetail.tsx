@@ -16,7 +16,7 @@ import {
   doneWorkouts,
   fmtDuration,
 } from '../lib/stats'
-import { toggleReaction, reactionsFor, commentsFor, addComment, deleteWorkout, templateFromWorkout } from '../lib/actions'
+import { toggleReaction, reactionsFor, commentsFor, addComment, deleteWorkout, templateFromWorkout, reopenWorkout } from '../lib/actions'
 
 export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boolean }) {
   useStoreVersion()
@@ -175,9 +175,20 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
 
         {mine && w.status === 'done' && (
           <div className="stack" style={{ marginTop: 8 }}>
-            <button className="btn block" onClick={() => setSaveTpl(true)}>
-              Lagre som mal
-            </button>
+            <div className="row">
+              <button
+                className="btn grow"
+                onClick={() => {
+                  if (reopenWorkout(id)) go('okt')
+                  else toast('Fullfør økta du har i gang før du redigerer en gammel')
+                }}
+              >
+                <Icon.edit /> Rediger
+              </button>
+              <button className="btn grow" onClick={() => setSaveTpl(true)}>
+                Lagre som mal
+              </button>
+            </div>
             {summary && (
               <button className="btn primary block big" onClick={() => go('feed')}>
                 Til feeden
