@@ -63,3 +63,7 @@
 ## Runde 11 – tilbakemeldinger
 - Ny seksjon på profilsiden: «Tilbakemelding på appen». Ønsker lagres i databasen, vises som «Venter» for alle tre, og blir markert «✓ Fikset» med beskrivelse når de er gjort
 - `CLAUDE.md` i repoet: hver arbeidsøkt starter med å hente åpne tilbakemeldinger (`node scripts/feedback.mjs list`), fikse dem og krysse dem av (`... done <id> "hva som ble endret"`)
+
+## Runde 12
+- Egen hviletid per øvelse (f.eks. 3 min på knebøy, 60 s på sidehev) – i øvelsesmenyen i loggeren
+- «Ny versjon av appen er klar · Oppdater»-knapp når en oppdatering er publisert (sjekker hvert 5. min og når appen åpnes igjen)

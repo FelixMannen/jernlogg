@@ -163,6 +163,7 @@ function Shell() {
     <div className={`app ${resting ? 'resting' : ''}`}>
       {st.status === 'loading' ? <div className="empty">Laster…</div> : page}
       <RestTimer />
+      <UpdateBanner />
       <Nav current={r0 || 'feed'} />
     </div>
   )
@@ -239,5 +240,37 @@ function RestTimer() {
         </span>
       )}
     </div>
+  )
+}
+
+function currentBundle() {
+  return [...document.scripts].map((s) => s.src).find((src) => src.includes('/assets/index-')) ?? ''
+}
+function UpdateBanner() {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    if (!import.meta.env.PROD) return
+    const mine = currentBundle()
+    const check = async () => {
+      try {
+        const html = await (await fetch('/', { cache: 'no-store' })).text()
+        const m = html.match(/\/assets\/index-[^"]+\.js/)
+        if (m && mine && !mine.endsWith(m[0])) setReady(true)
+      } catch {}
+    }
+    const t = setInterval(check, 5 * 60000)
+    const onVis = () => document.visibilityState === 'visible' && check()
+    document.addEventListener('visibilitychange', onVis)
+    check()
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [])
+  if (!ready) return null
+  return (
+    <button className="update-banner" onClick={() => location.reload()}>
+      Ny versjon av appen er klar · <b>Oppdater</b>
+    </button>
   )
 }

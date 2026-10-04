@@ -23,7 +23,7 @@ import {
   fmtDate,
   PR_LABEL,
 } from '../lib/stats'
-import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout } from '../lib/actions'
+import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout, setProfile } from '../lib/actions'
 
 export function WorkoutPage() {
   useStoreVersion()
@@ -327,7 +327,7 @@ function ExerciseCard({
       x.doneAt = new Date().toISOString()
     })
     setFocus(null)
-    if (!s.warmup) startRest(restSeconds)
+    if (!s.warmup) startRest(profile(me).restByExercise?.[ex.exerciseId] ?? restSeconds)
     if (prs.length) {
       vibrate([30, 40, 30, 40, 80])
       toast(`🏆 Ny PR: ${PR_LABEL[prs[0]].toLowerCase()} i ${info.name.toLowerCase()}!`, 'pr')
@@ -517,6 +517,24 @@ function ExerciseCard({
                 <Icon.timer /> Generer oppvarming
               </button>
             )}
+            <div className="list-item" style={{ flexWrap: 'wrap' }}>
+              <Icon.timer />
+              <span className="grow">Hviletid for {info.name.toLowerCase()}</span>
+              <div className="chips" style={{ margin: 0, padding: 0, width: '100%', flexWrap: 'wrap' }}>
+                {[60, 90, 120, 180, 240, 300].map((sec) => {
+                  const cur = profile(me).restByExercise?.[ex.exerciseId] ?? restSeconds
+                  return (
+                    <button
+                      key={sec}
+                      className={`chip ${cur === sec ? 'on' : ''}`}
+                      onClick={() => setProfile(me, { restByExercise: { ...(profile(me).restByExercise ?? {}), [ex.exerciseId]: sec } })}
+                    >
+                      {sec < 120 ? `${sec} s` : `${sec / 60} min`}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
             <button className="list-item" onClick={() => (setMenu(false), onReplace())}>
               <Icon.search /> Bytt øvelse
             </button>

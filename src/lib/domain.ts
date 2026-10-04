@@ -145,6 +145,7 @@ export type Profile = {
   restSeconds?: number
   bodyweight?: number
   weeklyGoal?: number
+  restByExercise?: Record<string, number>
 }
 
 export type BodyweightEntry = { userId: UserId; date: string; weight: number }
