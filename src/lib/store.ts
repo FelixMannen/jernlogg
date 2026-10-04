@@ -263,7 +263,18 @@ export async function init() {
   backend.subscribe(applyRemote)
   flush()
   window.addEventListener('online', () => flush())
+  // never lose a just-made change if the tab is closed or backgrounded right away
+  window.addEventListener('pagehide', () => {
+    clearTimeout(cacheTimer)
+    saveCache()
+    flush()
+  })
   document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      clearTimeout(cacheTimer)
+      saveCache()
+      flush()
+    }
     if (document.visibilityState === 'visible') {
       flush()
       // refresh in case realtime dropped while backgrounded

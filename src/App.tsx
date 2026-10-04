@@ -15,6 +15,7 @@ import { ProfilePage } from './pages/Profile'
 import { ExerciseDetailPage } from './pages/ExerciseDetail'
 import { ToolsPage } from './pages/Tools'
 import { FeedbackPage } from './pages/Feedback'
+import { ImportPage } from './pages/Import'
 
 init()
 
@@ -130,7 +131,10 @@ function Shell() {
   }, [route.join('/')])
 
   let page
-  switch (r0) {
+  switch ((r0 || '').split('?')[0]) {
+    case 'import':
+      page = <ImportPage key={location.hash} />
+      break
     case 'okt':
       page = <WorkoutPage />
       break
@@ -168,7 +172,7 @@ function Shell() {
       {st.status === 'loading' ? <div className="empty">Laster…</div> : page}
       <RestTimer />
       <UpdateBanner />
-      <Nav current={r0 || 'feed'} />
+      <Nav current={(r0 || 'feed').split('?')[0]} />
     </div>
   )
 }
@@ -179,7 +183,7 @@ function Nav({ current }: { current: string }) {
       <div className="nav-inner">
         <NavLink to="feed" label="Feed" icon={<Icon.feed />} on={current === 'feed' || current === 'w'} />
         <NavLink to="topp" label="Topplister" icon={<Icon.trophy />} on={current === 'topp' || current === 'ex'} />
-        <StartLink on={current === 'okt'} />
+        <StartLink on={current === 'okt' || current === 'import'} />
         <NavLink to="maler" label="Maler" icon={<Icon.list />} on={current === 'maler'} />
         <NavLink to="profil" label="Profil" icon={<Icon.user />} on={current === 'profil' || current === 'u' || current === 'verktoy' || current === 'tilbakemeldinger'} />
       </div>

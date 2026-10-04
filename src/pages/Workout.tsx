@@ -102,6 +102,9 @@ function StartScreen() {
           </section>
         )}
         <BackdateCard />
+        <button className="btn ghost block" style={{ marginTop: 4 }} onClick={() => go('import')}>
+          Importer økt fra tekst eller fil
+        </button>
         {tpls.length === 0 && recent.length === 0 && (
           <div className="empty">
             <h3>Første økt?</h3>

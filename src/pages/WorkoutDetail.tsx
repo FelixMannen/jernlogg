@@ -62,7 +62,7 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
         </div>
         <div className="stats">
           <div className="stat">
-            <div className="v">{w.status === 'active' ? fmtDuration(dur) : fmtDurationShort(dur)}</div>
+            <div className="v">{w.status === 'active' ? fmtDuration(dur) : dur > 0 ? fmtDurationShort(dur) : '–'}</div>
             <div className="l">Tid</div>
           </div>
           <div className="stat">

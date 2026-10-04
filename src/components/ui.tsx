@@ -109,7 +109,13 @@ export function useRoute(): string[] {
     },
     getHash,
   )
-  return h.split('/').map(decodeURIComponent)
+  return h.split('/').map((part) => {
+    try {
+      return decodeURIComponent(part)
+    } catch {
+      return part
+    }
+  })
 }
 export function go(path: string) {
   location.hash = '/' + path

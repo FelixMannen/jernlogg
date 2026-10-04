@@ -117,7 +117,7 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
             {w.data.feeling ? <span style={{ marginLeft: 6 }}>{FEELINGS[w.data.feeling - 1]}</span> : null}
           </div>
           <div className="tiny muted">
-            {fmtRelDate(w.data.startedAt)} · {fmtDurationShort(dur)} · {fmtVolume(workoutVolume(w.data))} · {workoutSetCount(w.data)} sett
+            {fmtRelDate(w.data.startedAt)} · {dur > 0 ? `${fmtDurationShort(dur)} · ` : ''}{fmtVolume(workoutVolume(w.data))} · {workoutSetCount(w.data)} sett
           </div>
         </div>
       </button>

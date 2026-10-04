@@ -79,3 +79,13 @@
 - Fiksede tilbakemeldinger har knappen «Tilbakemelding utført dårlig»: skriv hva som er galt, så logges klagen synlig for alle, og tilbakemeldingen settes tilbake til venter
 - Hver tilbakemelding har en tidslinje med alle forsøk og klager
 - `scripts/feedback.mjs list` viser klager og tidligere forsøk; `CLAUDE.md` sier at klager skal leses og løses skikkelig
+
+## Runde 16 – tilbakemelding fra David: importer økt fra tekst
+- Ny side `#/import`: åpner en lenke `…/#/import?d=<tekst>` som en ferdig utfylt økt, eller lar deg lime inn tekst / laste opp .md/.txt
+- Jernlogg-format v1 (bruker, dato, varighet, notat, «Øvelse: SxRxKG, RxKG …»), tåler +, %-koding, æøå, `;` eller linjeskift, x/X/× og ødelagt koding
+- Alt kan redigeres før lagring; ingenting lagres før du trykker «Lagre økt». Etter lagring går appen til feeden og fjerner `d=` fra adressen
+- Linjer som ikke kan tolkes vises med linjenummer; ukjente øvelser må avklares («Velg eksisterende» / «Opprett ny»); ukjent bruker gir advarsel
+- Duplikatvarsel når samme bruker allerede har en økt med samme dato og øvelser
+- «Kopier instruks til Claude» på import-siden, så Claude lager riktige lenker
+- Robusthet: endringer skrives til enheten med en gang hvis fanen lukkes eller appen legges i bakgrunnen
+- Tester: `scripts/test-import.ts` (parser, inkl. Davids 5 testtilfeller) og `scripts/import-e2e.mjs` (hele flyten i nettleser)
