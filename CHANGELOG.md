@@ -16,3 +16,8 @@
 - Skivekalkulator: når du redigerer kg på en stangøvelse vises skivene per side i riktige farger
 - Rediger fullførte økter (fikse feiltastinger i etterkant)
 - Hviletimeren dekker ikke lenger nederste innhold
+
+## Runde 2
+- Ukesmål: alle tre har et mål (standard 3 økter/uke, endres i innstillinger), vist øverst i feeden
+- Progresjonsforslag i loggeren: «Klarte 3×8 @ 80 sist – prøv 82,5 kg»
+- Profil: kalender over treningsdager (18 uker) og sett per muskelgruppe siste 4 uker

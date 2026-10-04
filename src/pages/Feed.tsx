@@ -15,6 +15,8 @@ import {
   prsForWorkout,
   e1rm,
   fmtDuration,
+  weeklyGoal,
+  workoutsThisWeek,
 } from '../lib/stats'
 import { toggleReaction, reactionsFor, commentsFor } from '../lib/actions'
 
@@ -51,6 +53,8 @@ export function FeedPage() {
             </a>
           )
         })}
+
+        <WeekGoals />
 
         <div className="chips" style={{ marginBottom: 12 }}>
           <button className={`chip ${filter === 'alle' ? 'on' : ''}`} onClick={() => setFilter('alle')}>
@@ -165,5 +169,33 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
         )}
       </div>
     </article>
+  )
+}
+
+function WeekGoals() {
+  const rows = USERS.map((u) => ({ u, done: workoutsThisWeek(u.id), goal: weeklyGoal(u.id) }))
+  const allDone = rows.every((r) => r.done >= r.goal)
+  return (
+    <section className="card" style={{ marginBottom: 12, padding: '12px 16px' }}>
+      <div className="spread" style={{ marginBottom: 8 }}>
+        <h3>Ukesmål</h3>
+        <span className="tiny muted">{allDone ? 'Alle i mål denne uka 🎉' : 'økter denne uka'}</span>
+      </div>
+      <div className="goals">
+        {rows.map(({ u, done, goal }) => (
+          <button key={u.id} className="goal" onClick={() => go(`u/${u.id}`)} aria-label={`${u.name}: ${done} av ${goal} økter`}>
+            <span className="goal-name">{u.name}</span>
+            <span className="goal-pips">
+              {Array.from({ length: Math.max(goal, done) }).map((_, i) => (
+                <i key={i} style={{ background: i < done ? u.color : undefined, opacity: i >= goal ? 0.6 : 1 }} />
+              ))}
+            </span>
+            <span className="num goal-n">
+              {done}/{goal}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }

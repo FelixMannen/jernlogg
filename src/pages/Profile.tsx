@@ -18,6 +18,10 @@ import {
   profile,
   usedExerciseIds,
   fmtDate,
+  trainingDays,
+  setsPerGroup,
+  startOfWeek,
+  weeklyGoal,
 } from '../lib/stats'
 import { addBodyweight, setProfile } from '../lib/actions'
 import { FeedItem } from './Feed'
@@ -87,6 +91,9 @@ export function ProfilePage({ userId }: { userId?: string }) {
             <div className="l">Totalt løftet</div>
           </div>
         </div>
+
+        <Heatmap userId={uid} color={u.color} />
+        <MuscleGroups userId={uid} color={u.color} />
 
         <section className="card">
           <div className="spread" style={{ marginBottom: 4 }}>
@@ -222,6 +229,16 @@ function SettingsSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: (
             ))}
           </div>
         </div>
+        <div className="field">
+          <span>Ukesmål (økter per uke)</span>
+          <div className="chips" style={{ flexWrap: 'wrap', margin: 0, padding: 0 }}>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <button key={n} className={`chip ${weeklyGoal(me) === n ? 'on' : ''}`} onClick={() => setProfile(me, { weeklyGoal: n })}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="list">
           <button
             className="list-item"
@@ -256,5 +273,65 @@ function SettingsSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: (
         </p>
       </div>
     </Sheet>
+  )
+}
+
+function Heatmap({ userId, color }: { userId: string; color: string }) {
+  const days = trainingDays(userId)
+  const weeks = 18
+  const start = startOfWeek()
+  start.setDate(start.getDate() - (weeks - 1) * 7)
+  const cells: { key: string; v: number; future: boolean }[] = []
+  const today = new Date()
+  const max = Math.max(1, ...days.values())
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    cells.push({ key, v: days.get(key) || 0, future: d > today })
+  }
+  const count = [...days.keys()].filter((k) => k >= cells[0].key).length
+  return (
+    <section className="card">
+      <div className="spread" style={{ marginBottom: 8 }}>
+        <h2>Treningsdager</h2>
+        <span className="tiny muted">{count} dager siste {weeks} uker</span>
+      </div>
+      <div className="heat">
+        {cells.map((c) => (
+          <i
+            key={c.key}
+            title={c.key}
+            style={c.v ? { background: color, opacity: 0.45 + 0.55 * (c.v / max) } : c.future ? { opacity: 0.3 } : undefined}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function MuscleGroups({ userId, color }: { userId: string; color: string }) {
+  const from = new Date(Date.now() - 28 * 86400000)
+  const rows = setsPerGroup(userId, from)
+  if (!rows.length) return null
+  const max = Math.max(...rows.map((r) => r.sets))
+  return (
+    <section className="card">
+      <div className="spread" style={{ marginBottom: 6 }}>
+        <h2>Sett per muskelgruppe</h2>
+        <span className="tiny muted">siste 4 uker</span>
+      </div>
+      {rows.map((r) => (
+        <div key={r.group} className="group-bar">
+          <span>{r.group}</span>
+          <span className="track">
+            <i style={{ width: `${(r.sets / max) * 100}%`, background: color }} />
+          </span>
+          <span className="num" style={{ textAlign: 'right' }}>
+            {r.sets}
+          </span>
+        </div>
+      ))}
+    </section>
   )
 }

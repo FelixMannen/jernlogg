@@ -9,6 +9,7 @@ import {
   exerciseById,
   lastSession,
   livePRCheck,
+  progressionHint,
   workoutVolume,
   workoutSetCount,
   fmtDuration,
@@ -281,6 +282,7 @@ function ExerciseCard({
   const last = lastSession(me, ex.exerciseId, workoutId)
   const lastWork = last?.sets.filter((s) => !s.warmup) ?? []
   const lastWarm = last?.sets.filter((s) => s.warmup) ?? []
+  const hint = ex.sets.some((s) => s.done) ? null : progressionHint(me, ex.exerciseId, workoutId)
   const [menu, setMenu] = useState(false)
   const [noteOpen, setNoteOpen] = useState(!!ex.note)
 
@@ -338,6 +340,7 @@ function ExerciseCard({
           <Icon.dots />
         </button>
       </div>
+      {hint && <div className="ex-note">💡 {hint}</div>}
       {noteOpen && (
         <input
           className="input"

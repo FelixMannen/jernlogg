@@ -342,3 +342,49 @@ export function workoutsInRange(userId: string, from: Date, to = new Date()) {
 export function userIdsOrdered(): UserId[] {
   return ['felix', 'david', 'erik']
 }
+
+/** Progression hint: if every work set last time hit the same reps at the same weight (and >= 5 reps), suggest a small jump. */
+export function progressionHint(userId: string, exerciseId: string, excludeWorkoutId?: string): string | null {
+  const last = lastSession(userId, exerciseId, excludeWorkoutId)
+  if (!last) return null
+  const work = last.sets.filter((s) => !s.warmup && s.weight && s.reps)
+  if (work.length < 2) return null
+  const w = work[0].weight!
+  const r = work[0].reps!
+  const allSame = work.every((s) => s.weight === w && (s.reps || 0) >= r)
+  if (!allSame) return null
+  const ex = exerciseById(exerciseId)
+  const step = ex.group === 'Bein' || exerciseId === 'markloft' || exerciseId === 'rumensk-markloft' ? 5 : 2.5
+  if (ex.equipment === 'Manualer' || ex.equipment === 'Kabel' || ex.equipment === 'Maskin') return `Klarte ${work.length}×${r} @ ${fmtKg(w)} sist – prøv ${fmtKg(w + (ex.equipment === 'Manualer' ? 2 : 2.5))} kg eller +1 rep`
+  return `Klarte ${work.length}×${r} @ ${fmtKg(w)} sist – prøv ${fmtKg(w + step)} kg`
+}
+
+export function weeklyGoal(userId: string) {
+  return profile(userId).weeklyGoal ?? 3
+}
+
+export function workoutsThisWeek(userId: string) {
+  return workoutsInRange(userId, startOfWeek()).length
+}
+
+/** Days (yyyy-mm-dd) with at least one finished workout. */
+export function trainingDays(userId: string): Map<string, number> {
+  const m = new Map<string, number>()
+  for (const w of doneWorkouts(userId)) {
+    const d = new Date(w.data.startedAt)
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    m.set(k, (m.get(k) || 0) + workoutVolume(w.data))
+  }
+  return m
+}
+
+/** Work sets per muscle group in a date range. */
+export function setsPerGroup(userId: string, from: Date): { group: string; sets: number }[] {
+  const m = new Map<string, number>()
+  for (const w of workoutsInRange(userId, from))
+    for (const ex of w.data.exercises) {
+      const g = exerciseById(ex.exerciseId).group
+      m.set(g, (m.get(g) || 0) + ex.sets.filter((s) => s.done && !s.warmup).length)
+    }
+  return [...m.entries()].map(([group, sets]) => ({ group, sets })).sort((a, b) => b.sets - a.sets)
+}

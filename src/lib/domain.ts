@@ -143,6 +143,7 @@ export type Template = {
 export type Profile = {
   restSeconds?: number
   bodyweight?: number
+  weeklyGoal?: number
 }
 
 export type BodyweightEntry = { userId: UserId; date: string; weight: number }

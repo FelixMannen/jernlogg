@@ -1063,3 +1063,68 @@ textarea.input {
 .app.resting {
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 84px);
 }
+
+/* weekly goals */
+.goals {
+  display: grid;
+  gap: 6px;
+}
+.goal {
+  display: grid;
+  grid-template-columns: 52px 1fr 36px;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  min-height: 28px;
+}
+.goal-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.goal-pips {
+  display: flex;
+  gap: 4px;
+}
+.goal-pips i {
+  flex: 1;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--floor-2);
+  max-width: 48px;
+}
+.goal-n {
+  text-align: right;
+  font-weight: 700;
+  color: var(--chalk-2);
+}
+/* heatmap */
+.heat {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+}
+.heat i {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--floor-2);
+}
+.group-bar {
+  display: grid;
+  grid-template-columns: 64px 1fr 28px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  padding: 3px 0;
+}
+.group-bar .track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--floor-2);
+  overflow: hidden;
+}
+.group-bar .track i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
