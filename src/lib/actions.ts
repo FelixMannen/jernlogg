@@ -1,5 +1,5 @@
 import { put, patch, remove, uid, getDoc, nowIso, list } from './store'
-import type { Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
+import type { Feedback, Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
 import { lastSession, activeWorkout, profile } from './stats'
 
 export function newSet(prev?: Partial<SetEntry>): SetEntry {
@@ -194,4 +194,16 @@ export function startBackdatedWorkout(userId: UserId, dateIso: string): string |
   }
   put('workouts', id, w)
   return id
+}
+
+export function sendFeedback(userId: UserId, text: string) {
+  put('feedback', uid('f'), { userId, text, at: nowIso(), status: 'open' } as Feedback)
+}
+
+export function feedbackList() {
+  return list<Feedback>('feedback').sort((a, b) => b.data.at.localeCompare(a.data.at))
+}
+
+export function deleteFeedback(id: string) {
+  remove(id)
 }

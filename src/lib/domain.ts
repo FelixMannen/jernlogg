@@ -154,3 +154,12 @@ export type Comment = { workoutId: string; userId: UserId; text: string; at: str
 export const REACTIONS = ['💪', '🔥', '😤', '👏']
 export const FEELINGS = ['😵', '😮‍💨', '🙂', '😎', '🦍']
 export const FEELING_LABEL = ['Tung dag', 'Slitsomt', 'Grei', 'Sterk', 'Beist']
+
+export type Feedback = {
+  userId: UserId
+  text: string
+  at: string
+  status: 'open' | 'done'
+  doneAt?: string
+  reply?: string // what was changed
+}

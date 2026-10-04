@@ -59,3 +59,7 @@
 
 ## Runde 10
 - «Logg en tidligere økt eller gamle rekorder»: velg dato og registrer, så topplister og PR-er stemmer fra dag én
+
+## Runde 11 – tilbakemeldinger
+- Ny seksjon på profilsiden: «Tilbakemelding på appen». Ønsker lagres i databasen, vises som «Venter» for alle tre, og blir markert «✓ Fikset» med beskrivelse når de er gjort
+- `CLAUDE.md` i repoet: hver arbeidsøkt starter med å hente åpne tilbakemeldinger (`node scripts/feedback.mjs list`), fikse dem og krysse dem av (`... done <id> "hva som ble endret"`)

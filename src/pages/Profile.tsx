@@ -27,7 +27,7 @@ import {
   PR_LABEL,
   fmtRelDate,
 } from '../lib/stats'
-import { addBodyweight, setProfile } from '../lib/actions'
+import { addBodyweight, setProfile, sendFeedback, feedbackList, deleteFeedback } from '../lib/actions'
 import { FeedItem } from './Feed'
 
 export function ProfilePage({ userId }: { userId?: string }) {
@@ -172,6 +172,8 @@ export function ProfilePage({ userId }: { userId?: string }) {
             <div className="small muted">{mine ? 'Logg vekta di for å se utviklingen og få relativ styrke på topplistene.' : 'Ingen registreringer.'}</div>
           )}
         </section>
+
+        {mine && <FeedbackSection />}
 
         {ws.length > 0 && (
           <section>
@@ -429,6 +431,83 @@ function RecentPRs({ userId }: { userId: string }) {
           </button>
         ))}
       </div>
+    </section>
+  )
+}
+
+function FeedbackSection() {
+  const { me } = useMe()
+  const [text, setText] = useState('')
+  const [showDone, setShowDone] = useState(false)
+  const all = feedbackList()
+  const open = all.filter((f) => f.data.status !== 'done')
+  const done = all.filter((f) => f.data.status === 'done')
+  return (
+    <section className="card stack" id="tilbakemelding">
+      <div>
+        <h2>Tilbakemelding på appen</h2>
+        <p className="small muted" style={{ margin: '4px 0 0' }}>
+          Savner du noe, eller er noe knotete? Skriv det her. Ønskene samles i databasen og blir fikset neste gang appen oppdateres – du ser her når det er gjort.
+        </p>
+      </div>
+      <textarea className="input" placeholder="f.eks. Vil kunne sette hviletid per øvelse" value={text} onChange={(e) => setText(e.target.value)} />
+      <button
+        className="btn primary block"
+        disabled={!text.trim()}
+        onClick={() => {
+          sendFeedback(me as UserId, text.trim())
+          setText('')
+          toast('Takk! Tilbakemeldingen er sendt')
+        }}
+      >
+        Send tilbakemelding
+      </button>
+      {open.length > 0 && (
+        <div>
+          <div className="tiny muted" style={{ marginBottom: 4 }}>
+            Venter ({open.length})
+          </div>
+          <div className="list">
+            {open.map((f) => (
+              <div key={f.id} className="list-item" style={{ alignItems: 'flex-start' }}>
+                <Avatar id={f.data.userId} size="sm" />
+                <div className="grow small">
+                  {f.data.text}
+                  <div className="tiny muted">{fmtRelDate(f.data.at)}</div>
+                </div>
+                {f.data.userId === me && (
+                  <button className="icon-btn" aria-label="Trekk tilbake" onClick={() => deleteFeedback(f.id)}>
+                    <Icon.x />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {done.length > 0 && (
+        <div>
+          <button className="tiny muted" onClick={() => setShowDone(!showDone)}>
+            ✓ Fikset ({done.length}) · {showDone ? 'skjul' : 'vis'}
+          </button>
+          {showDone && (
+            <div className="list" style={{ marginTop: 4 }}>
+              {done.map((f) => (
+                <div key={f.id} className="list-item" style={{ alignItems: 'flex-start' }}>
+                  <span style={{ color: 'var(--good)', fontWeight: 700 }}>✓</span>
+                  <div className="grow small">
+                    <span style={{ textDecoration: 'line-through', color: 'var(--dust)' }}>{f.data.text}</span>
+                    {f.data.reply && <div style={{ marginTop: 2 }}>{f.data.reply}</div>}
+                    <div className="tiny muted">
+                      {userById(f.data.userId).name} · fikset {f.data.doneAt ? fmtRelDate(f.data.doneAt) : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }

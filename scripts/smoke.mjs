@@ -186,6 +186,14 @@ try {
     await page.waitForURL(/#\/w\//)
   })
   await shot('backdated')
+  await step('feedback', async () => {
+    await page.goto(base + '#/profil')
+    await page.fill('#tilbakemelding textarea', 'Test: vil ha supersett')
+    await page.getByRole('button', { name: 'Send tilbakemelding' }).click()
+    await page.getByText('Test: vil ha supersett').waitFor()
+    await page.locator('#tilbakemelding').scrollIntoViewIfNeeded()
+  })
+  await shot('feedback')
   await step('tools', async () => {
     await page.goto(base + '#/verktoy')
     await page.getByText('Skivekalkulator').waitFor()
