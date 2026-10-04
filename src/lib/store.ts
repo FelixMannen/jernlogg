@@ -224,6 +224,10 @@ export function allDocs(): Doc[] {
   return [...docs.values()]
 }
 
+export function getVersion() {
+  return version
+}
+
 export function getStatus() {
   return { status, backend: backend.name, pending: pending.length }
 }

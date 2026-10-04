@@ -1,4 +1,4 @@
-import { list, getDoc, type Doc } from './store'
+import { list, getDoc, getVersion, type Doc } from './store'
 import {
   BUILTIN_EXERCISES,
   type Exercise,
@@ -9,6 +9,21 @@ import {
   type Profile,
   type BodyweightEntry,
 } from './domain'
+
+/* ---------- memo (invalidated whenever the store changes) ---------- */
+let memoVersion = -1
+const memoMap = new Map<string, any>()
+function memo<T>(key: string, fn: () => T): T {
+  const v = getVersion()
+  if (v !== memoVersion) {
+    memoMap.clear()
+    memoVersion = v
+  }
+  if (memoMap.has(key)) return memoMap.get(key)
+  const r = fn()
+  memoMap.set(key, r)
+  return r
+}
 
 /* ---------- basic math ---------- */
 export function e1rm(weight: number | null | undefined, reps: number | null | undefined): number {
@@ -110,11 +125,11 @@ export function exerciseById(id: string): Exercise {
 }
 
 export function workouts(): Doc<Workout>[] {
-  return list<Workout>('workouts').sort((a, b) => b.data.startedAt.localeCompare(a.data.startedAt))
+  return memo('workouts', () => list<Workout>('workouts').sort((a, b) => b.data.startedAt.localeCompare(a.data.startedAt)))
 }
 
 export function doneWorkouts(userId?: string): Doc<Workout>[] {
-  return workouts().filter((w) => w.data.status === 'done' && (!userId || w.data.userId === userId))
+  return memo('done:' + (userId ?? ''), () => workouts().filter((w) => w.data.status === 'done' && (!userId || w.data.userId === userId)))
 }
 
 export function activeWorkout(userId: string): Doc<Workout> | undefined {
@@ -160,6 +175,9 @@ export type ExerciseSession = {
 }
 
 export function exerciseHistory(userId: string, exerciseId: string, excludeWorkoutId?: string): ExerciseSession[] {
+  return memo(`hist:${userId}:${exerciseId}:${excludeWorkoutId ?? ''}`, () => exerciseHistoryRaw(userId, exerciseId, excludeWorkoutId))
+}
+function exerciseHistoryRaw(userId: string, exerciseId: string, excludeWorkoutId?: string): ExerciseSession[] {
   const out: ExerciseSession[] = []
   for (const w of doneWorkouts(userId)) {
     if (w.id === excludeWorkoutId) continue
@@ -387,4 +405,60 @@ export function setsPerGroup(userId: string, from: Date): { group: string; sets:
       m.set(g, (m.get(g) || 0) + ex.sets.filter((s) => s.done && !s.warmup).length)
     }
   return [...m.entries()].map(([group, sets]) => ({ group, sets })).sort((a, b) => b.sets - a.sets)
+}
+
+/* ---------- milestones ---------- */
+export type Badge = { id: string; icon: string; label: string; earned: boolean; progress?: string; ratio: number }
+
+export function badges(userId: string): Badge[] {
+  return memo('badges:' + userId, () => {
+    const out: Badge[] = []
+    const lift = (exId: string, name: string, steps: number[]) => {
+      const max = recordsFrom(exerciseHistory(userId, exId)).maxWeight
+      for (const s of steps) {
+        out.push({
+          id: `${exId}-${s}`,
+          icon: '🏋️',
+          label: `${s} kg ${name}`,
+          earned: max >= s,
+          progress: max >= s ? undefined : max ? `mangler ${fmtKg(s - max)} kg` : 'ikke logget ennå',
+          ratio: Math.min(1, max / s),
+        })
+      }
+    }
+    lift('benkpress', 'benk', [60, 80, 100, 120, 140])
+    lift('kneboy', 'knebøy', [80, 100, 140, 180, 220])
+    lift('markloft', 'markløft', [100, 140, 180, 220, 260])
+    const n = doneWorkouts(userId).length
+    for (const s of [1, 10, 25, 50, 100, 250])
+      out.push({ id: `w-${s}`, icon: '📅', label: s === 1 ? 'Første økt' : `${s} økter`, earned: n >= s, progress: n >= s ? undefined : `${n}/${s}`, ratio: Math.min(1, n / s) })
+    const st = streakWeeks(userId)
+    for (const s of [4, 8, 12, 26])
+      out.push({ id: `s-${s}`, icon: '🔥', label: `${s} uker på rad`, earned: st >= s, progress: st >= s ? undefined : `${st}/${s}`, ratio: Math.min(1, st / s) })
+    const tot = doneWorkouts(userId).reduce((a, w) => a + workoutVolume(w.data), 0)
+    for (const s of [10000, 100000, 1000000])
+      out.push({
+        id: `v-${s}`,
+        icon: '⚖️',
+        label: `${fmtVolume(s)} totalt`,
+        earned: tot >= s,
+        progress: tot >= s ? undefined : `${fmtVolume(tot)} av ${fmtVolume(s)}`,
+        ratio: Math.min(1, tot / s),
+      })
+    const hours = doneWorkouts(userId).map((w) => new Date(w.data.startedAt).getHours())
+    out.push({ id: 'early', icon: '🌅', label: 'Morgenfugl (før 07)', earned: hours.some((h) => h < 7), ratio: hours.some((h) => h < 7) ? 1 : 0 })
+    out.push({ id: 'late', icon: '🌙', label: 'Nattugle (etter 22)', earned: hours.some((h) => h >= 22), ratio: hours.some((h) => h >= 22) ? 1 : 0 })
+    return out
+  })
+}
+
+export function recentPRs(userId: string, n = 8): { workoutId: string; date: string; pr: PR }[] {
+  return memo(`recentprs:${userId}:${n}`, () => {
+    const out: { workoutId: string; date: string; pr: PR }[] = []
+    for (const w of doneWorkouts(userId)) {
+      for (const pr of prsForWorkout(w.id, w.data)) if (pr.kind !== 'volume') out.push({ workoutId: w.id, date: w.data.startedAt, pr })
+      if (out.length >= n) break
+    }
+    return out.slice(0, n)
+  })
 }

@@ -22,6 +22,10 @@ import {
   setsPerGroup,
   startOfWeek,
   weeklyGoal,
+  badges,
+  recentPRs,
+  PR_LABEL,
+  fmtRelDate,
 } from '../lib/stats'
 import { addBodyweight, setProfile } from '../lib/actions'
 import { FeedItem } from './Feed'
@@ -92,6 +96,7 @@ export function ProfilePage({ userId }: { userId?: string }) {
           </div>
         </div>
 
+        <Badges userId={uid} color={u.color} />
         <Heatmap userId={uid} color={u.color} />
         <MuscleGroups userId={uid} color={u.color} />
 
@@ -127,6 +132,8 @@ export function ProfilePage({ userId }: { userId?: string }) {
             </div>
           </section>
         )}
+
+        <RecentPRs userId={uid} />
 
         {favs.length > 0 && (
           <section>
@@ -332,6 +339,86 @@ function MuscleGroups({ userId, color }: { userId: string; color: string }) {
           </span>
         </div>
       ))}
+    </section>
+  )
+}
+
+function Badges({ userId, color }: { userId: string; color: string }) {
+  const [all, setAll] = useState(false)
+  const list = badges(userId)
+  const earned = list.filter((b) => b.earned)
+  // next goal per category: the first unearned in each family, sorted by closeness
+  const next = list
+    .filter((b) => !b.earned && b.progress)
+    .filter((b, i, arr) => arr.findIndex((x) => x.id.split('-')[0] === b.id.split('-')[0]) === i)
+    .sort((a, b) => b.ratio - a.ratio)
+    .slice(0, 3)
+  return (
+    <section className="card">
+      <div className="spread" style={{ marginBottom: 8 }}>
+        <h2>Milepæler</h2>
+        <button className="tiny muted" onClick={() => setAll(!all)}>
+          {earned.length}/{list.length} · {all ? 'skjul' : 'vis alle'}
+        </button>
+      </div>
+      <div className="chips" style={{ flexWrap: 'wrap', margin: 0, padding: 0 }}>
+        {(all ? list : earned).map((b) => (
+          <span key={b.id} className="chip" style={b.earned ? { background: 'color-mix(in srgb, ' + color + ' 18%, var(--floor-2))', color: 'var(--chalk)' } : { opacity: 0.45 }}>
+            {b.icon} {b.label}
+          </span>
+        ))}
+        {!all && earned.length === 0 && <span className="small muted">Ingen ennå – første økt gir den første.</span>}
+      </div>
+      {next.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="tiny muted" style={{ marginBottom: 4 }}>
+            Nærmest neste
+          </div>
+          {next.map((b) => (
+            <div key={b.id} className="group-bar" style={{ gridTemplateColumns: '1fr 80px', gap: 12 }}>
+              <span>
+                {b.icon} {b.label} <span className="muted tiny">· {b.progress}</span>
+              </span>
+              <span className="track">
+                <i style={{ width: `${b.ratio * 100}%`, background: color }} />
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function RecentPRs({ userId }: { userId: string }) {
+  const prs = recentPRs(userId, 6)
+  if (!prs.length) return null
+  return (
+    <section>
+      <div className="section-title">
+        <h2>Siste PR-er</h2>
+      </div>
+      <div className="list">
+        {prs.map(({ workoutId, date, pr }, i) => (
+          <button key={i} className="list-item" onClick={() => go(`w/${workoutId}`)}>
+            <span style={{ fontSize: '1.25rem' }}>🏆</span>
+            <div className="grow">
+              <div style={{ fontWeight: 600 }}>{exerciseById(pr.exerciseId).name}</div>
+              <div className="tiny muted">
+                {PR_LABEL[pr.kind]} · {fmtRelDate(date)}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div className="num" style={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                {fmtKg(pr.value, pr.kind === 'e1rm' ? 0 : 1)} kg
+              </div>
+              <div className="tiny" style={{ color: 'var(--good)' }}>
+                +{fmtKg(pr.value - pr.prev, 1)}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
     </section>
   )
 }

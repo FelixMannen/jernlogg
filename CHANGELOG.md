@@ -32,3 +32,8 @@
 - Fungerer uten nett: appen lastes fra cache (service worker), og sett som logges offline synkes når dekningen er tilbake
 - I loggeren vises rekordene til alle tre på hver øvelse (👑 til den som leder)
 - Topplister: «Hvem er sterkest på hva» – tabell over alle øvelser minst to har logget, med antall kroner per person
+
+## Runde 5
+- Raskere: tunge beregninger (historikk, PR-er) mellomlagres til data endres – appen holder seg kjapp når loggen vokser
+- Milepæler på profilen (100 kg benk, 140 kg knebøy, 50 økter, 8 uker på rad, 100 t totalt …) med «nærmest neste»-fremdrift
+- «Siste PR-er» på profilen med hvor mye du forbedret deg

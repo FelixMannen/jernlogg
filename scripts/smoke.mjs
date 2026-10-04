@@ -19,9 +19,9 @@ page.on('console', (m) => m.type() === 'error' && errors.push('console: ' + m.te
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message))
 const base = `http://localhost:${PORT}/?local=1`
 let n = 0
-const shot = async (name) => {
+const shot = async (name, full = false) => {
   await page.waitForTimeout(250)
-  await page.screenshot({ path: `${out}/${String(++n).padStart(2, '0')}-${name}.png`, fullPage: false })
+  await page.screenshot({ path: `${out}/${String(++n).padStart(2, '0')}-${name}.png`, fullPage: full })
 }
 const step = async (name, fn) => {
   try {
@@ -123,7 +123,7 @@ try {
   await step('maler', async () => page.click('a[href="#/maler"]'))
   await shot('maler')
   await step('profil', async () => page.click('a[href="#/profil"]'))
-  await shot('profil')
+  await shot('profil', true)
   await step('exercise', async () => {
     await page.goto(base + '#/ex/benkpress')
   })
