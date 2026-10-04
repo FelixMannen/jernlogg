@@ -67,3 +67,6 @@
 ## Runde 12
 - Egen hviletid per øvelse (f.eks. 3 min på knebøy, 60 s på sidehev) – i øvelsesmenyen i loggeren
 - «Ny versjon av appen er klar · Oppdater»-knapp når en oppdatering er publisert (sjekker hvert 5. min og når appen åpnes igjen)
+
+## Runde 13
+- Supersett: koble en øvelse med neste i øvelsesmenyen. Kortene henger sammen, hviletimeren starter først etter siste øvelse i supersettet, og appen hopper til neste øvelse etter hvert sett

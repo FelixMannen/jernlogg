@@ -327,7 +327,14 @@ function ExerciseCard({
       x.doneAt = new Date().toISOString()
     })
     setFocus(null)
-    if (!s.warmup) startRest(profile(me).restByExercise?.[ex.exerciseId] ?? restSeconds)
+    // in a superset, rest only after the last exercise of the group
+    if (!s.warmup && !ex.supersetNext) startRest(profile(me).restByExercise?.[ex.exerciseId] ?? restSeconds)
+    else if (!s.warmup && ex.supersetNext) {
+      setTimeout(() => {
+        const next = document.querySelectorAll('.ex-card')[index + 1] as HTMLElement | undefined
+        next?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 300)
+    }
     if (prs.length) {
       vibrate([30, 40, 30, 40, 80])
       toast(`🏆 Ny PR: ${PR_LABEL[prs[0]].toLowerCase()} i ${info.name.toLowerCase()}!`, 'pr')
@@ -335,7 +342,7 @@ function ExerciseCard({
     } else vibrate(25)
     // last set of this exercise? scroll the next exercise into view
     const remaining = ex.sets.filter((x) => !x.done && x.uid !== s.uid).length
-    if (remaining === 0) {
+    if (remaining === 0 && !ex.supersetNext) {
       setTimeout(() => {
         const cards = document.querySelectorAll('.ex-card')
         const next = cards[index + 1] as HTMLElement | undefined
@@ -345,7 +352,8 @@ function ExerciseCard({
   }
 
   return (
-    <div className="ex-card">
+    <div className={`ex-card ${ex.supersetNext ? 'ss-start' : ''} ${index > 0 && w.exercises[index - 1].supersetNext ? 'ss-cont' : ''}`}>
+      {ex.supersetNext && !(index > 0 && w.exercises[index - 1].supersetNext) && <div className="ss-label">Supersett</div>}
       <div className="ex-title">
         <button className="name" onClick={() => go(`ex/${ex.exerciseId}`)}>
           {info.name}
@@ -535,6 +543,17 @@ function ExerciseCard({
                 })}
               </div>
             </div>
+            {index < w.exercises.length - 1 && (
+              <button
+                className="list-item"
+                onClick={() => {
+                  upd((e) => void (e.supersetNext = !e.supersetNext))
+                  setMenu(false)
+                }}
+              >
+                <Icon.down /> {ex.supersetNext ? 'Fjern supersett med neste øvelse' : 'Supersett med neste øvelse'}
+              </button>
+            )}
             <button className="list-item" onClick={() => (setMenu(false), onReplace())}>
               <Icon.search /> Bytt øvelse
             </button>

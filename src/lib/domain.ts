@@ -117,6 +117,7 @@ export type WorkoutExercise = {
   uid: string
   exerciseId: string
   note?: string
+  supersetNext?: boolean // linked with the following exercise
   sets: SetEntry[]
 }
 

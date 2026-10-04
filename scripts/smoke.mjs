@@ -134,6 +134,11 @@ try {
     const warm = await page.locator('.ex-card').first().locator('.set-idx.warm').count()
     if (warm < 2) throw new Error('warmup generator added ' + warm + ' sets')
     await shot('template-warmup')
+    await page.locator('.ex-card').nth(3).getByRole('button', { name: /Valg for/ }).click()
+    await page.getByRole('button', { name: 'Supersett med neste øvelse' }).click()
+    if ((await page.locator('.ex-card.ss-cont').count()) !== 1) throw new Error('superset not linked')
+    await page.locator('.ex-card').nth(3).scrollIntoViewIfNeeded()
+    await shot('superset')
     // complete first work set and finish
     const first = page.locator('.ex-card').first()
     const rows = first.locator('.set-row')
