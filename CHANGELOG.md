@@ -89,3 +89,12 @@
 - «Kopier instruks til Claude» på import-siden, så Claude lager riktige lenker
 - Robusthet: endringer skrives til enheten med en gang hvis fanen lukkes eller appen legges i bakgrunnen
 - Tester: `scripts/test-import.ts` (parser, inkl. Davids 5 testtilfeller) og `scripts/import-e2e.mjs` (hele flyten i nettleser)
+
+## Runde 17 – ordentlig PWA + push-varsler
+- Installerbar app: nytt iOS-ikon (180 px), maskable-ikon for Android, `id`/`scope`, snarveier (Start økt, Topplister), guide for «Legg til på Hjem-skjerm» på iPhone og installer-knapp på Android/PC
+- Ny service worker: sider og app-kode hentes alltid fra nett først (nye deployer slår igjennom med en gang), cache bare som reserve offline; håndterer push og åpner riktig side når du trykker på et varsel
+- Varsler (Profil → Varsler): slå på med ett trykk, «Send testvarsel», slå av per enhet
+  - «Du burde trene i dag 💪» etter X dager uten økt, på klokkeslettet du velger (med kontekst: ukesmål, hva kompisene har gjort)
+  - «David trente akkurat 💪 – din tur!» når en kompis fullfører en økt
+- Vercel-funksjoner: `/api/push-test`, `/api/notify`, `/api/cron`, `/api/health`; Supabase `pg_cron` hver time + Vercel Cron daglig som reserve
+- Nye samlinger i `docs`: `push_subscriptions`, `push_log` – ingen endring av eksisterende data eller skjema

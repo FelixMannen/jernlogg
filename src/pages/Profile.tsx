@@ -29,6 +29,7 @@ import {
 } from '../lib/stats'
 import { addBodyweight, setProfile, sendFeedback, feedbackList } from '../lib/actions'
 import { FeedItem } from './Feed'
+import { NotificationsSection } from '../components/Notifications'
 
 export function ProfilePage({ userId }: { userId?: string }) {
   useStoreVersion()
@@ -173,6 +174,7 @@ export function ProfilePage({ userId }: { userId?: string }) {
           )}
         </section>
 
+        {mine && <NotificationsSection />}
         {mine && <FeedbackSection />}
 
         {ws.length > 0 && (

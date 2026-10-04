@@ -23,6 +23,7 @@ import {
   fmtDate,
   PR_LABEL,
 } from '../lib/stats'
+import { notifyFinished } from '../lib/push'
 import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout, setProfile } from '../lib/actions'
 
 export function WorkoutPage() {
@@ -147,6 +148,7 @@ function Logger({ id }: { id: string }) {
       if (!ok) return
     }
     finishWorkout(id)
+    if (!editing) notifyFinished(id)
     if (editing) {
       toast('Endringene er lagret')
       go(`w/${id}`)

@@ -5,7 +5,7 @@ import { USERS, userById } from './lib/domain'
 import { activeWorkout, fmtDuration, doneWorkouts, activeWorkouts, prsForWorkout } from './lib/stats'
 import { getRest, subscribeRest, adjustRest, stopRest } from './lib/actions'
 import { list } from './lib/store'
-import type { Reaction, Comment } from './lib/domain'
+import type { Reaction, Comment, UserId } from './lib/domain'
 import { FeedPage } from './pages/Feed'
 import { WorkoutPage } from './pages/Workout'
 import { WorkoutDetailPage } from './pages/WorkoutDetail'
@@ -16,6 +16,7 @@ import { ExerciseDetailPage } from './pages/ExerciseDetail'
 import { ToolsPage } from './pages/Tools'
 import { FeedbackPage } from './pages/Feedback'
 import { ImportPage } from './pages/Import'
+import { syncSubscription } from './lib/push'
 
 init()
 
@@ -123,6 +124,9 @@ function useFriendNotifications(me: string) {
 function Shell() {
   useStoreVersion()
   const { me } = useMe()
+  useEffect(() => {
+    syncSubscription(me as UserId)
+  }, [me])
   useFriendNotifications(me)
   const route = useRoute()
   const [r0, r1, r2] = route

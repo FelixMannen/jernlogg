@@ -19,6 +19,7 @@ import {
   workoutsThisWeek,
 } from '../lib/stats'
 import { toggleReaction, reactionsFor, commentsFor } from '../lib/actions'
+import { InstallGuide } from '../components/Notifications'
 
 export function FeedPage() {
   useStoreVersion()
@@ -54,6 +55,7 @@ export function FeedPage() {
           )
         })}
 
+        <InstallBanner />
         <WeekGoals />
 
         <div className="chips" style={{ marginBottom: 12 }}>
@@ -199,5 +201,29 @@ function WeekGoals() {
         ))}
       </div>
     </section>
+  )
+}
+
+function InstallBanner() {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem('jernlogg.installHidden') === '1'
+    } catch {
+      return false
+    }
+  })
+  if (hidden) return null
+  return (
+    <div className="install-wrap">
+      <InstallGuide
+        compact
+        onClose={() => {
+          try {
+            localStorage.setItem('jernlogg.installHidden', '1')
+          } catch {}
+          setHidden(true)
+        }}
+      />
+    </div>
   )
 }

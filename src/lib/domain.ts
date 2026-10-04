@@ -147,6 +147,7 @@ export type Profile = {
   bodyweight?: number
   weeklyGoal?: number
   restByExercise?: Record<string, number>
+  notify?: { reminders: boolean; days: number; hour: number; friends: boolean; tz: string }
 }
 
 export type BodyweightEntry = { userId: UserId; date: string; weight: number }

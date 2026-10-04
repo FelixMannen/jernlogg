@@ -23,3 +23,12 @@ Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-t
 - Se på skjermbildene. Ingen konsollfeil, ingen horisontal scroll.
 - Push til `main` → Vercel deployer automatisk til https://jernlogg.vercel.app
 - Norsk bokmål i UI, mørkt tema, mobil først.
+
+## PWA og push-varsler
+- Service worker: `public/sw.js` (network-first for sider, cache-first kun for hashede `/assets/*`, push + notificationclick). Registreres bare i produksjonsbygg og ikke med `?local=1`. Bump `VERSION` ved større endringer.
+- Push: Web Push/VAPID. Offentlig nøkkel i `src/config.ts` og `api/_lib.js`; privat nøkkel KUN som `VAPID_PRIVATE_KEY` i Vercel (aldri i repoet).
+- Abonnementer: `collection = 'push_subscriptions'` (id `push:<hash av endpoint>`). Logg over sendte varsler (dedupe): `collection = 'push_log'`.
+- Brukerinnstillinger: `profiles`-dokumentet, feltet `notify { reminders, days, hour, friends, tz }`.
+- API (Vercel-funksjoner i `api/`): `push-test` (testvarsel), `notify` (kompis fullførte økt), `cron` (daglige påminnelser, `?dry=1` viser hva som ville blitt sendt), `health`.
+- Planlegging: Supabase `pg_cron`-jobben `jernlogg-reminders` kaller `/api/cron` hver time (SQL i `supabase/cron.sql`), og Vercel Cron kaller den én gang i døgnet som reserve. Hver bruker får maks én påminnelse per lokale dato.
+- Tester: `node scripts/test-reminders.mjs`, `node scripts/test-api.mjs`, `node scripts/pwa-check.mjs`. Ekte push må testes på https://jernlogg.vercel.app (ikke localhost).
