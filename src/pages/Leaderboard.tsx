@@ -5,6 +5,7 @@ import { useStoreVersion } from '../lib/store'
 import { USERS, type UserId } from '../lib/domain'
 import {
   bestE1rm,
+  bestScore,
   exerciseById,
   fmtKg,
   fmtVolume,
@@ -59,13 +60,13 @@ export function LeaderboardPage() {
   const [picking, setPicking] = useState(false)
 
   const exRows: Row[] = USERS.map((u) => {
-    const b = bestE1rm(u.id, ex)
+    const b = bestScore(u.id, ex)
     const bw = latestBodyweight(u.id)
-    const val = relative ? (bw && b.value ? b.value / bw : 0) : b.value
+    const val = relative && b.unit === 'kg' ? (bw && b.value ? b.value / bw : 0) : b.value
     return {
       id: u.id,
       value: val,
-      sub: b.set ? `${fmtKg(b.set.weight)}×${b.set.reps} · ${fmtDate(b.date!)}` : undefined,
+      sub: b.set ? `${b.set.weight ? fmtKg(b.set.weight) + '×' : ''}${b.set.reps}${b.set.weight ? '' : ' reps'} · ${fmtDate(b.date!)}` : undefined,
     }
   })
 
@@ -90,7 +91,7 @@ export function LeaderboardPage() {
       <div className="page">
         <section className="card">
           <div className="spread" style={{ marginBottom: 8 }}>
-            <h2>Beste 1RM</h2>
+            <h2>{exerciseById(ex).bodyweight ? 'Flest reps' : 'Beste 1RM'}</h2>
             {anyBw && (
               <div className="row">
                 <button className={`chip ${!relative ? 'on' : ''}`} onClick={() => setRelative(false)}>
@@ -112,7 +113,7 @@ export function LeaderboardPage() {
               Annen…
             </button>
           </div>
-          <Board rows={exRows} fmt={(v) => (relative ? `${v.toFixed(2).replace('.', ',')}×` : `${fmtKg(v, 0)}`)} empty={`Ingen har logget ${exerciseById(ex).name.toLowerCase()} ennå.`} />
+          <Board rows={exRows} fmt={(v) => (exerciseById(ex).bodyweight ? `${v}` : relative ? `${v.toFixed(2).replace('.', ',')}×` : `${fmtKg(v, 0)}`)} empty={`Ingen har logget ${exerciseById(ex).name.toLowerCase()} ennå.`} />
           <button className="btn small ghost" style={{ marginTop: 4 }} onClick={() => go(`ex/${ex}`)}>
             Se utvikling for {exerciseById(ex).name.toLowerCase()}
           </button>
@@ -164,11 +165,11 @@ export function LeaderboardPage() {
 
 function HeadToHead() {
   // exercises at least two people have logged
-  const ids = usedExerciseIds().filter((id) => USERS.filter((u) => bestE1rm(u.id, id).value > 0).length >= 2)
+  const ids = usedExerciseIds().filter((id) => USERS.filter((u) => bestScore(u.id, id).value > 0).length >= 2)
   if (!ids.length) return null
   const wins: Record<string, number> = { felix: 0, david: 0, erik: 0 }
   const rows = ids.map((id) => {
-    const vals = USERS.map((u) => bestE1rm(u.id, id).value)
+    const vals = USERS.map((u) => bestScore(u.id, id).value)
     const max = Math.max(...vals)
     USERS.forEach((u, i) => vals[i] === max && max > 0 && wins[u.id]++)
     return { id, vals, max }

@@ -161,6 +161,11 @@ try {
   await shot('exercise')
   await step('compare', async () => page.getByRole('button', { name: 'Sammenlign alle' }).click())
   await shot('exercise-compare')
+  await step('bodyweight exercise', async () => {
+    await page.goto(base + '#/ex/pullups/david')
+    await page.getByText('Flest reps i ett sett').waitFor()
+  })
+  await shot('pullups')
   // overflow check
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
   if (overflow) errors.push('horizontal overflow on exercise page')

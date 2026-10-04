@@ -10,11 +10,21 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
   const { me } = useMe()
   const [who, setWho] = useState<UserId>((userId ?? me) as UserId)
   const [compare, setCompare] = useState(false)
-  const [metric, setMetric] = useState<'e1rm' | 'top' | 'volume'>('e1rm')
   const info = exerciseById(id)
+  const bw = !!info.bodyweight
+  const [metric, setMetric] = useState<'e1rm' | 'top' | 'volume' | 'reps' | 'totalReps'>(bw ? 'reps' : 'e1rm')
   const hist = exerciseHistory(who, id)
   const rec = recordsFrom(hist)
-  const pick = (h: ReturnType<typeof exerciseHistory>[number]) => (metric === 'e1rm' ? h.bestE1rm : metric === 'top' ? h.topWeight : h.volume)
+  const pick = (h: ReturnType<typeof exerciseHistory>[number]) =>
+    metric === 'e1rm'
+      ? h.bestE1rm
+      : metric === 'top'
+        ? h.topWeight
+        : metric === 'reps'
+          ? Math.max(0, ...h.sets.filter((s) => !s.warmup).map((s) => s.reps || 0))
+          : metric === 'totalReps'
+            ? h.totalReps
+            : h.volume
   const series = (compare ? USERS : USERS.filter((u) => u.id === who))
     .map((u) => ({
       name: u.name,
@@ -46,16 +56,16 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
         {!compare && (
           <div className="stats" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
             <div className="stat">
-              <div className="v">{rec.maxE1rm ? fmtKg(rec.maxE1rm, 1) : '–'}</div>
-              <div className="l">Beste 1RM (est.)</div>
+              <div className="v">{bw ? rec.maxReps || '–' : rec.maxE1rm ? fmtKg(rec.maxE1rm, 1) : '–'}</div>
+              <div className="l">{bw ? 'Flest reps i ett sett' : 'Beste 1RM (est.)'}</div>
             </div>
             <div className="stat">
               <div className="v">{rec.maxWeight ? `${fmtKg(rec.maxWeight)}` : '–'}</div>
-              <div className="l">Tyngste vekt</div>
+              <div className="l">{bw ? 'Mest ekstra vekt' : 'Tyngste vekt'}</div>
             </div>
             <div className="stat">
-              <div className="v">{rec.maxVolume ? fmtKg(rec.maxVolume, 0) : '–'}</div>
-              <div className="l">Mest volum i én økt</div>
+              <div className="v">{bw ? Math.max(0, ...hist.map((h) => h.totalReps)) || '–' : rec.maxVolume ? fmtKg(rec.maxVolume, 0) : '–'}</div>
+              <div className="l">{bw ? 'Flest reps i én økt' : 'Mest volum i én økt'}</div>
             </div>
             <div className="stat">
               <div className="v">{hist.length}</div>
@@ -66,19 +76,24 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
 
         <section className="card">
           <div className="chips" style={{ marginBottom: 8 }}>
-            {(
-              [
-                ['e1rm', 'Est. 1RM'],
-                ['top', 'Toppvekt'],
-                ['volume', 'Volum'],
-              ] as const
+            {(bw
+              ? ([
+                  ['reps', 'Flest reps'],
+                  ['totalReps', 'Reps totalt'],
+                  ['top', 'Ekstra vekt'],
+                ] as const)
+              : ([
+                  ['e1rm', 'Est. 1RM'],
+                  ['top', 'Toppvekt'],
+                  ['volume', 'Volum'],
+                ] as const)
             ).map(([k, l]) => (
               <button key={k} className={`chip ${metric === k ? 'on' : ''}`} onClick={() => setMetric(k)}>
                 {l}
               </button>
             ))}
           </div>
-          {series.length ? <LineChart series={series} /> : <div className="small muted">Ingen økter med denne øvelsen ennå.</div>}
+          {series.length ? <LineChart series={series} unit={metric === 'reps' || metric === 'totalReps' ? 'reps' : 'kg'} /> : <div className="small muted">Ingen økter med denne øvelsen ennå.</div>}
           {compare && series.length > 1 && (
             <div className="row tiny" style={{ marginTop: 6, gap: 12 }}>
               {series.map((s) => (
@@ -95,12 +110,12 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
             <h3 style={{ marginBottom: 6 }}>Flest reps per vekt</h3>
             <div className="chips" style={{ flexWrap: 'wrap', margin: 0, padding: 0 }}>
               {[...rec.repsAtWeight.entries()]
-                .filter(([w]) => w > 0)
+                .filter(([w]) => w > 0 || bw)
                 .sort((a, b) => b[0] - a[0])
                 .slice(0, 12)
                 .map(([w, r]) => (
                   <span key={w} className="chip num">
-                    {fmtKg(w)} kg × {r}
+                    {w ? `${bw ? '+' : ''}${fmtKg(w)} kg` : 'Kroppsvekt'} × {r}
                   </span>
                 ))}
             </div>

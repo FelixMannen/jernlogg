@@ -11,6 +11,7 @@ import {
   livePRCheck,
   progressionHint,
   bestE1rm,
+  bestScore,
   workoutVolume,
   workoutSetCount,
   fmtDuration,
@@ -615,12 +616,13 @@ function NumInput({
 }
 
 function RecordLine({ exerciseId, me }: { exerciseId: string; me: UserId }) {
-  const rows = USERS.map((u) => ({ u, v: bestE1rm(u.id, exerciseId).value })).filter((r) => r.v > 0)
+  const unit = bestScore(me, exerciseId).unit
+  const rows = USERS.map((u) => ({ u, v: bestScore(u.id, exerciseId).value })).filter((r) => r.v > 0)
   if (!rows.length) return null
   const max = Math.max(...rows.map((r) => r.v))
   return (
     <div className="ex-note row" style={{ gap: 10, flexWrap: 'wrap' }}>
-      <span>Rekord e1RM:</span>
+      <span>{unit === 'reps' ? 'Rekord reps:' : 'Rekord e1RM:'}</span>
       {rows.map(({ u, v }) => (
         <span key={u.id} className="num" style={{ color: v === max ? 'var(--chalk)' : undefined, fontWeight: v === max ? 700 : 500 }}>
           <i style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: u.color, marginRight: 4 }} />

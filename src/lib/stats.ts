@@ -462,3 +462,20 @@ export function recentPRs(userId: string, n = 8): { workoutId: string; date: str
     return out.slice(0, n)
   })
 }
+
+/** Comparable "best" per exercise: e1RM in kg, or max reps in one set for bodyweight exercises. */
+export function bestScore(userId: string, exerciseId: string): { value: number; unit: 'kg' | 'reps'; date?: string; set?: SetEntry } {
+  const ex = exerciseById(exerciseId)
+  if (!ex.bodyweight) {
+    const b = bestE1rm(userId, exerciseId)
+    return { ...b, unit: 'kg' }
+  }
+  let best: { value: number; unit: 'reps'; date?: string; set?: SetEntry } = { value: 0, unit: 'reps' }
+  for (const h of exerciseHistory(userId, exerciseId))
+    for (const s of h.sets) if (!s.warmup && (s.reps || 0) > best.value) best = { value: s.reps || 0, unit: 'reps', date: h.date, set: s }
+  return best
+}
+
+export function fmtScore(v: number, unit: 'kg' | 'reps') {
+  return unit === 'reps' ? `${v} reps` : fmtKg(v, 0)
+}

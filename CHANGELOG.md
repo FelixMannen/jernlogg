@@ -47,3 +47,8 @@
 - Utvidet automatisk test: mal → start økt → generer oppvarming → fullfør → velg følelse → rediger → lagre
 - Oppvarmingssett heter nå V1, V2 … (O1 så ut som 01)
 - Engangstips i loggeren som forklarer oppvarming, «Forrige» og hviletimer
+
+## Runde 8
+- Kroppsvektøvelser (pull-ups, dips, chins …) rangeres på flest reps i stedet for 1RM – på topplister, «hvem er sterkest» og rekordlinja i loggeren
+- Øvelsessiden for kroppsvektøvelser viser flest reps, reps totalt og ekstra vekt
+- Grafer med heltall (reps) får heltallsakse

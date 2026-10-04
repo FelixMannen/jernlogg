@@ -3,7 +3,7 @@ import { useId, useState } from 'react'
 export type Pt = { x: number; y: number; label?: string }
 export type Series = { name: string; color: string; points: Pt[] }
 
-function niceTicks(min: number, max: number, count = 4) {
+function niceTicks(min: number, max: number, count = 4, integer = false) {
   if (min === max) {
     min = min - 1
     max = max + 1
@@ -11,7 +11,8 @@ function niceTicks(min: number, max: number, count = 4) {
   const span = max - min
   const step0 = span / count
   const mag = 10 ** Math.floor(Math.log10(step0))
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0) ?? step0
+  let step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0) ?? step0
+  if (integer) step = Math.max(1, Math.round(step))
   const lo = Math.floor(min / step) * step
   const hi = Math.ceil(max / step) * step
   const ticks: number[] = []
@@ -35,7 +36,8 @@ export function LineChart({ series, height = 180, unit = 'kg', fmtX }: { series:
     xMin -= 86400000 * 3
     xMax += 86400000 * 3
   }
-  const { lo, hi, ticks } = niceTicks(Math.min(...ys) * 0.97, Math.max(...ys) * 1.02)
+  const integer = ys.every((y) => Number.isInteger(y))
+  const { lo, hi, ticks } = integer ? niceTicks(Math.min(...ys) - 1, Math.max(...ys) + 1, 4, true) : niceTicks(Math.min(...ys) * 0.97, Math.max(...ys) * 1.02)
   const sx = (x: number) => pad.l + ((x - xMin) / (xMax - xMin)) * (W - pad.l - pad.r)
   const sy = (y: number) => pad.t + (1 - (y - lo) / (hi - lo || 1)) * (H - pad.t - pad.b)
   const fx = fmtX ?? ((x: number) => new Date(x).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }))
