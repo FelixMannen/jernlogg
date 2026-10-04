@@ -37,3 +37,8 @@
 - Raskere: tunge beregninger (historikk, PR-er) mellomlagres til data endres – appen holder seg kjapp når loggen vokser
 - Milepæler på profilen (100 kg benk, 140 kg knebøy, 50 økter, 8 uker på rad, 100 t totalt …) med «nærmest neste»-fremdrift
 - «Siste PR-er» på profilen med hvor mye du forbedret deg
+
+## Runde 6
+- Neste sett er markert i loggeren, og når siste sett på en øvelse hukes av, scroller appen til neste øvelse
+- Varsel når noen reagerer på eller kommenterer økta di
+- Verifisert live: sanntidssynk mellom to enheter fungerer (endringer dukker opp på ~1–3 s uten refresh), og offline-cache er aktiv

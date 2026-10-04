@@ -329,6 +329,15 @@ function ExerciseCard({
       toast(`🏆 Ny PR: ${PR_LABEL[prs[0]].toLowerCase()} i ${info.name.toLowerCase()}!`, 'pr')
       confetti(['#f2c14e', '#eceae4', userById(me).color])
     } else vibrate(25)
+    // last set of this exercise? scroll the next exercise into view
+    const remaining = ex.sets.filter((x) => !x.done && x.uid !== s.uid).length
+    if (remaining === 0) {
+      setTimeout(() => {
+        const cards = document.querySelectorAll('.ex-card')
+        const next = cards[index + 1] as HTMLElement | undefined
+        if (next) next.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 350)
+    }
   }
 
   return (
@@ -364,9 +373,10 @@ function ExerciseCard({
         const prevRef = s.warmup ? lastWarm[warmIdx - 1] : lastWork[workIdx - 1]
         const isPR = s.done && livePRCheck(me, ex.exerciseId, s, workoutId, allSetsThisExercise.filter((o) => (o.doneAt ?? '') < (s.doneAt ?? ''))).length > 0
         const focused = focus?.set === s.uid
+        const isNext = !s.done && ex.sets.find((x) => !x.done)?.uid === s.uid && ex.sets.some((x) => x.done)
         return (
           <div key={s.uid}>
-            <div className={`set-grid set-row ${s.done ? 'done' : ''} ${isPR ? 'pr' : ''}`}>
+            <div className={`set-grid set-row ${s.done ? 'done' : ''} ${isPR ? 'pr' : ''} ${isNext ? 'next' : ''}`}>
               <button
                 className={`set-idx ${s.warmup ? 'warm' : ''}`}
                 onClick={() => updSet(s.uid, (x) => void (x.warmup = !x.warmup))}

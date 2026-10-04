@@ -1187,3 +1187,13 @@ textarea.input {
   font-size: 1.0625rem;
   color: var(--dust);
 }
+
+.set-row.next {
+  box-shadow: inset 0 0 0 1px var(--seam);
+}
+.set-row.next .set-idx {
+  color: var(--me);
+}
+.ex-card {
+  scroll-margin-top: 72px;
+}

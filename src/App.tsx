@@ -4,6 +4,8 @@ import { init, useStoreVersion, getStatus } from './lib/store'
 import { USERS, userById } from './lib/domain'
 import { activeWorkout, fmtDuration, doneWorkouts, activeWorkouts, prsForWorkout } from './lib/stats'
 import { getRest, subscribeRest, adjustRest, stopRest } from './lib/actions'
+import { list } from './lib/store'
+import type { Reaction, Comment } from './lib/domain'
 import { FeedPage } from './pages/Feed'
 import { WorkoutPage } from './pages/Workout'
 import { WorkoutDetailPage } from './pages/WorkoutDetail'
@@ -76,14 +78,26 @@ function UserPicker({ onPick }: { onPick: (id: string) => void }) {
 
 function useFriendNotifications(me: string) {
   const v = useStoreVersion()
-  const seen = useRef<{ done: Set<string>; live: Set<string> } | null>(null)
+  const seen = useRef<{ done: Set<string>; live: Set<string>; social: Set<string> } | null>(null)
   useEffect(() => {
     if (getStatus().status === 'loading') return
     const done = doneWorkouts().filter((w) => w.data.userId !== me)
     const live = activeWorkouts().filter((w) => w.data.userId !== me)
+    const myIds = new Set(doneWorkouts(me).map((w) => w.id))
+    const social = [
+      ...list<Reaction>('reactions').filter((r) => myIds.has(r.data.workoutId) && r.data.userId !== me),
+      ...list<Comment>('comments').filter((c) => myIds.has(c.data.workoutId) && c.data.userId !== me),
+    ]
     if (!seen.current) {
-      seen.current = { done: new Set(done.map((w) => w.id)), live: new Set(live.map((w) => w.id)) }
+      seen.current = { done: new Set(done.map((w) => w.id)), live: new Set(live.map((w) => w.id)), social: new Set(social.map((d) => d.id)) }
       return
+    }
+    for (const d of social) {
+      if (seen.current.social.has(d.id)) continue
+      seen.current.social.add(d.id)
+      const who = userById(d.data.userId).name
+      const text = d.collection === 'comments' ? `${who} kommenterte: «${(d.data as Comment).text.slice(0, 60)}»` : `${who} reagerte ${(d.data as Reaction).emoji} på økta di`
+      toast(text, undefined, { label: 'Se', run: () => (location.hash = `/w/${d.data.workoutId}`) })
     }
     for (const w of done) {
       if (seen.current.done.has(w.id)) continue
