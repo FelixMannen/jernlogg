@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMe, TopBar, Icon, go, confirmDialog, toast, confetti, vibrate, useNow, Sheet, unlockAudio, useWakeLock, PlateBar } from '../components/ui'
 import { ExercisePicker } from '../components/ExercisePicker'
 import { getDoc, useStoreVersion } from '../lib/store'
-import { userById, type Workout, type WorkoutExercise, type SetEntry, type UserId } from '../lib/domain'
+import { userById, USERS, type Workout, type WorkoutExercise, type SetEntry, type UserId } from '../lib/domain'
 import {
   activeWorkout,
   templates,
@@ -10,6 +10,7 @@ import {
   lastSession,
   livePRCheck,
   progressionHint,
+  bestE1rm,
   workoutVolume,
   workoutSetCount,
   fmtDuration,
@@ -340,6 +341,7 @@ function ExerciseCard({
           <Icon.dots />
         </button>
       </div>
+      <RecordLine exerciseId={ex.exerciseId} me={me} />
       {hint && <div className="ex-note">💡 {hint}</div>}
       {noteOpen && (
         <input
@@ -598,5 +600,23 @@ function NumInput({
         if (!isNaN(n)) onChange(decimal ? n : Math.round(n))
       }}
     />
+  )
+}
+
+function RecordLine({ exerciseId, me }: { exerciseId: string; me: UserId }) {
+  const rows = USERS.map((u) => ({ u, v: bestE1rm(u.id, exerciseId).value })).filter((r) => r.v > 0)
+  if (!rows.length) return null
+  const max = Math.max(...rows.map((r) => r.v))
+  return (
+    <div className="ex-note row" style={{ gap: 10, flexWrap: 'wrap' }}>
+      <span>Rekord e1RM:</span>
+      {rows.map(({ u, v }) => (
+        <span key={u.id} className="num" style={{ color: v === max ? 'var(--chalk)' : undefined, fontWeight: v === max ? 700 : 500 }}>
+          <i style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: u.color, marginRight: 4 }} />
+          {u.id === me ? 'Du' : u.name} {fmtKg(v, 0)}
+          {v === max && rows.length > 1 ? ' 👑' : ''}
+        </span>
+      ))}
+    </div>
   )
 }

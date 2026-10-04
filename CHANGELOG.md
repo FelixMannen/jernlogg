@@ -27,3 +27,8 @@
 - Angre når du sletter et sett
 - Etter økta: velg hvordan den føltes (😵 → 🦍) og skriv et notat – vises i feeden
 - Varsler i appen når en kompis starter eller fullfører en økt (med antall PR-er)
+
+## Runde 4
+- Fungerer uten nett: appen lastes fra cache (service worker), og sett som logges offline synkes når dekningen er tilbake
+- I loggeren vises rekordene til alle tre på hver øvelse (👑 til den som leder)
+- Topplister: «Hvem er sterkest på hva» – tabell over alle øvelser minst to har logget, med antall kroner per person

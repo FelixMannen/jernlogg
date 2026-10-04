@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { TopBar, Avatar, go, useMe } from '../components/ui'
 import { ExercisePicker } from '../components/ExercisePicker'
 import { useStoreVersion } from '../lib/store'
@@ -118,6 +118,8 @@ export function LeaderboardPage() {
           </button>
         </section>
 
+        <HeadToHead />
+
         <section className="card" style={{ marginTop: 12 }}>
           <h2>Big 3-total</h2>
           <p className="tiny muted" style={{ margin: '2px 0 4px' }}>
@@ -157,5 +159,46 @@ export function LeaderboardPage() {
         />
       )}
     </>
+  )
+}
+
+function HeadToHead() {
+  // exercises at least two people have logged
+  const ids = usedExerciseIds().filter((id) => USERS.filter((u) => bestE1rm(u.id, id).value > 0).length >= 2)
+  if (!ids.length) return null
+  const wins: Record<string, number> = { felix: 0, david: 0, erik: 0 }
+  const rows = ids.map((id) => {
+    const vals = USERS.map((u) => bestE1rm(u.id, id).value)
+    const max = Math.max(...vals)
+    USERS.forEach((u, i) => vals[i] === max && max > 0 && wins[u.id]++)
+    return { id, vals, max }
+  })
+  return (
+    <section className="card" style={{ marginTop: 12 }}>
+      <div className="spread" style={{ marginBottom: 8 }}>
+        <h2>Hvem er sterkest på hva</h2>
+      </div>
+      <div className="h2h">
+        <span />
+        {USERS.map((u) => (
+          <span key={u.id} className="h2h-head">
+            <Avatar id={u.id} size="sm" />
+            <span className="num tiny muted">{wins[u.id]} 👑</span>
+          </span>
+        ))}
+        {rows.map((r) => (
+          <Fragment key={r.id}>
+            <button className="h2h-ex" onClick={() => go(`ex/${r.id}`)}>
+              {exerciseById(r.id).name}
+            </button>
+            {r.vals.map((v, i) => (
+              <span key={i} className="num h2h-v" style={v === r.max && v > 0 ? { color: USERS[i].color, fontWeight: 700 } : undefined}>
+                {v > 0 ? fmtKg(v, 0) : '–'}
+              </span>
+            ))}
+          </Fragment>
+        ))}
+      </div>
+    </section>
   )
 }
