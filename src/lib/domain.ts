@@ -163,5 +163,13 @@ export type Feedback = {
   at: string
   status: 'open' | 'done'
   doneAt?: string
-  reply?: string // what was changed
+  reply?: string // what was changed (latest attempt)
+  attempts?: { reply: string; doneAt: string }[] // earlier attempts that got a complaint
+}
+
+export type FeedbackComplaint = {
+  feedbackId: string
+  userId: UserId
+  text: string
+  at: string
 }

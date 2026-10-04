@@ -17,10 +17,24 @@ async function fetchAll() {
   return r.json()
 }
 
+async function fetchComplaints() {
+  const r = await fetch(`${URL_}/rest/v1/docs?collection=eq.feedback_complaints&deleted=eq.false&order=created_at.asc`, { headers: H })
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
+  return r.json()
+}
+
 if (cmd === 'list' || cmd === 'all') {
   const rows = (await fetchAll()).filter((d) => cmd === 'all' || d.data.status !== 'done')
+  const complaints = await fetchComplaints()
   if (!rows.length) console.log('Ingen åpne tilbakemeldinger.')
-  for (const d of rows) console.log(`[${d.data.status}] ${d.id}  (${d.data.userId}, ${d.data.at.slice(0, 10)})\n    ${d.data.text}${d.data.reply ? `\n    -> ${d.data.reply}` : ''}`)
+  for (const d of rows) {
+    const ks = complaints.filter((k) => k.data.feedbackId === d.id)
+    const tag = d.data.status === 'done' ? 'done' : ks.length ? 'KLAGE – gjør på nytt' : 'open'
+    console.log(`[${tag}] ${d.id}  (${d.data.userId}, ${d.data.at.slice(0, 10)})\n    ${d.data.text}`)
+    for (const a of d.data.attempts ?? []) console.log(`    tidligere forsøk (${a.doneAt.slice(0, 10)}): ${a.reply}`)
+    for (const k of ks) console.log(`    klage fra ${k.data.userId} (${k.data.at.slice(0, 10)}): ${k.data.text}`)
+    if (d.data.reply) console.log(`    -> ${d.data.reply}`)
+  }
 } else if (cmd === 'done') {
   if (!id || !reply) throw new Error('usage: done <id> "<what was changed>"')
   const row = (await fetchAll()).find((d) => d.id === id)

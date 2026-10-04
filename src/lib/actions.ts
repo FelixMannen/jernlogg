@@ -1,5 +1,5 @@
 import { put, patch, remove, uid, getDoc, nowIso, list } from './store'
-import type { Feedback, Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
+import type { Feedback, FeedbackComplaint, Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
 import { lastSession, activeWorkout, profile } from './stats'
 
 export function newSet(prev?: Partial<SetEntry>): SetEntry {
@@ -206,4 +206,20 @@ export function feedbackList() {
 
 export function deleteFeedback(id: string) {
   remove(id)
+}
+
+export function complaintsFor(feedbackId: string) {
+  return list<FeedbackComplaint>('feedback_complaints')
+    .filter((d) => d.data.feedbackId === feedbackId)
+    .sort((a, b) => a.data.at.localeCompare(b.data.at))
+}
+
+/** «Tilbakemelding utført dårlig»: log the complaint and reopen the feedback so it gets redone. */
+export function complainFeedback(feedbackId: string, userId: UserId, text: string) {
+  put('feedback_complaints', uid('k'), { feedbackId, userId, text, at: nowIso() } as FeedbackComplaint)
+  patch<Feedback>(feedbackId, (f) => {
+    const attempts = [...(f.attempts ?? [])]
+    if (f.reply) attempts.push({ reply: f.reply, doneAt: f.doneAt ?? nowIso() })
+    return { ...f, status: 'open', attempts, reply: undefined, doneAt: undefined }
+  })
 }

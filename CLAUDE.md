@@ -6,7 +6,7 @@ Styrketreningslogg for Felix, David og Erik. Se `SPEC.md` for krav og `CHANGELOG
 Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-tabellen `docs` med `collection = 'feedback'`.
 1. Hent åpne tilbakemeldinger: `node scripts/feedback.mjs list`
    (hvis nettverket blokkerer supabase.co: kjør tilsvarende fetch i nettleserkonsollen på https://jernlogg.vercel.app via Chrome)
-2. Jobb på hver av dem før andre forbedringer.
+2. Jobb på hver av dem før andre forbedringer. Tilbakemeldinger merket **KLAGE – gjør på nytt** har fått klage på en tidligere løsning («Tilbakemelding utført dårlig» i appen): les klagen(e) og de tidligere forsøkene nøye, og løs det klagen påpeker – ikke bare gjenta forrige løsning. Klager ligger i `collection = 'feedback_complaints'` (`data.feedbackId` peker på tilbakemeldingen) og skal aldri slettes eller endres.
 3. Når en er implementert, testet og pushet: `node scripts/feedback.mjs done <id> "<kort beskrivelse av endringen, på norsk>"`
    – da vises den som «✓ Fikset» i appen.
 4. Noter rundene i `CHANGELOG.md`.

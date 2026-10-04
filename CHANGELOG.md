@@ -73,3 +73,9 @@
 
 ## Runde 14
 - «Last ned full backup av alle data» under Profil → ⋯ (alle økter, maler, reaksjoner osv. for alle tre, som JSON)
+
+## Runde 15 – se tilbakemeldinger + klager
+- Ny side «Tilbakemeldinger» (Profil → «Se alle tilbakemeldinger»): alle tilbakemeldinger fra alle tre med status Venter / ✓ Fikset / Klage – gjøres på nytt, og filter
+- Fiksede tilbakemeldinger har knappen «Tilbakemelding utført dårlig»: skriv hva som er galt, så logges klagen synlig for alle, og tilbakemeldingen settes tilbake til venter
+- Hver tilbakemelding har en tidslinje med alle forsøk og klager
+- `scripts/feedback.mjs list` viser klager og tidligere forsøk; `CLAUDE.md` sier at klager skal leses og løses skikkelig

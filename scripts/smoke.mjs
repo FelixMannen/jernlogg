@@ -195,8 +195,23 @@ try {
     await page.goto(base + '#/profil')
     await page.fill('#tilbakemelding textarea', 'Test: vil ha supersett')
     await page.getByRole('button', { name: 'Send tilbakemelding' }).click()
+    await page.getByRole('button', { name: /Se alle tilbakemeldinger \(1 venter/ }).click()
+    await page.waitForURL(/tilbakemeldinger/)
     await page.getByText('Test: vil ha supersett').waitFor()
-    await page.locator('#tilbakemelding').scrollIntoViewIfNeeded()
+    // simulate Claude marking it done
+    await page.evaluate(() => {
+      const J = window.__jernlogg
+      const d = J.allDocs().find((x) => x.collection === 'feedback')
+      J.put('feedback', d.id, { ...d.data, status: 'done', doneAt: new Date().toISOString(), reply: 'La til supersett i øvelsesmenyen' })
+    })
+    await page.getByRole('button', { name: 'Tilbakemelding utført dårlig' }).click()
+    await page.fill('.sheet textarea', 'Supersett blir ikke lagret i maler')
+    await page.getByRole('button', { name: 'Send klage' }).click()
+    await page.getByText('Klage – gjøres på nytt').waitFor()
+    await page.getByText('Supersett blir ikke lagret i maler').waitFor()
+    await page.getByText('La til supersett i øvelsesmenyen').waitFor()
+    const st = await page.evaluate(() => window.__jernlogg.allDocs().find((x) => x.collection === 'feedback').data.status)
+    if (st !== 'open') throw new Error('feedback not reopened: ' + st)
   })
   await shot('feedback')
   await step('tools', async () => {

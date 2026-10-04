@@ -14,6 +14,7 @@ import { TemplatesPage } from './pages/Templates'
 import { ProfilePage } from './pages/Profile'
 import { ExerciseDetailPage } from './pages/ExerciseDetail'
 import { ToolsPage } from './pages/Tools'
+import { FeedbackPage } from './pages/Feedback'
 
 init()
 
@@ -148,6 +149,9 @@ function Shell() {
     case 'u':
       page = <ProfilePage key={r1} userId={r1} />
       break
+    case 'tilbakemeldinger':
+      page = <FeedbackPage />
+      break
     case 'verktoy':
       page = <ToolsPage />
       break
@@ -177,7 +181,7 @@ function Nav({ current }: { current: string }) {
         <NavLink to="topp" label="Topplister" icon={<Icon.trophy />} on={current === 'topp' || current === 'ex'} />
         <StartLink on={current === 'okt'} />
         <NavLink to="maler" label="Maler" icon={<Icon.list />} on={current === 'maler'} />
-        <NavLink to="profil" label="Profil" icon={<Icon.user />} on={current === 'profil' || current === 'u' || current === 'verktoy'} />
+        <NavLink to="profil" label="Profil" icon={<Icon.user />} on={current === 'profil' || current === 'u' || current === 'verktoy' || current === 'tilbakemeldinger'} />
       </div>
     </nav>
   )

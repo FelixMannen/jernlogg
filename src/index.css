@@ -1233,3 +1233,36 @@ textarea.input {
   color: var(--me);
   padding: 0 4px 2px;
 }
+
+/* feedback page */
+.fb-status {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.fb-timeline {
+  list-style: none;
+  margin: 12px 0 0 13px;
+  padding: 0 0 0 16px;
+  border-left: 2px solid var(--seam);
+}
+.fb-timeline li {
+  position: relative;
+  padding: 2px 0 10px;
+}
+.fb-timeline li::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--good);
+}
+.fb-timeline li.complaint::before {
+  background: var(--bad);
+}
