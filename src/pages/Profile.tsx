@@ -72,6 +72,13 @@ export function ProfilePage({ userId }: { userId?: string }) {
             </div>
           </div>
         </div>
+        {mine && (
+          <div className="chips">
+            <button className="chip" onClick={() => go('verktoy')}>
+              🧮 Skive- og 1RM-kalkulator
+            </button>
+          </div>
+        )}
         {!mine && (
           <div className="chips">
             {USERS.filter((x) => x.id !== uid).map((x) => (
@@ -269,6 +276,9 @@ function SettingsSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: (
             }}
           >
             Eksporter mine sett (CSV)
+          </button>
+          <button className="list-item" onClick={() => go('verktoy')}>
+            Verktøy: skive- og 1RM-kalkulator
           </button>
           <button className="list-item" onClick={onSwitch}>
             Bytt bruker

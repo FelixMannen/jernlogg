@@ -52,3 +52,7 @@
 - Kroppsvektøvelser (pull-ups, dips, chins …) rangeres på flest reps i stedet for 1RM – på topplister, «hvem er sterkest» og rekordlinja i loggeren
 - Øvelsessiden for kroppsvektøvelser viser flest reps, reps totalt og ekstra vekt
 - Grafer med heltall (reps) får heltallsakse
+
+## Runde 9
+- «Gjør samme økt som David»: start en kompis' økt med samme øvelser og antall sett (vektene hentes fra din egen historikk)
+- Verktøy-side: skivekalkulator (20/15/10 kg stang) og 1RM-kalkulator med prosenttabell – lenket fra profilen

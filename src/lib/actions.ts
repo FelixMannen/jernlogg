@@ -42,9 +42,9 @@ export function updateWorkout(id: string, fn: (w: Workout) => Workout | void) {
   patch<Workout>(id, (w) => fn(w) ?? w)
 }
 
-export function addExercises(workoutId: string, userId: string, exerciseIds: string[]) {
+export function addExercises(workoutId: string, userId: string, exerciseIds: string[], counts?: Record<string, { sets: number; reps?: number }>) {
   updateWorkout(workoutId, (w) => {
-    for (const exId of exerciseIds) w.exercises.push(exerciseFromHistory(userId, exId))
+    for (const exId of exerciseIds) w.exercises.push(exerciseFromHistory(userId, exId, counts?.[exId]?.sets, counts?.[exId]?.reps))
   })
 }
 

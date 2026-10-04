@@ -166,10 +166,23 @@ try {
     await page.getByText('Flest reps i ett sett').waitFor()
   })
   await shot('pullups')
+  await step('tools', async () => {
+    await page.goto(base + '#/verktoy')
+    await page.getByText('Skivekalkulator').waitFor()
+  })
+  await shot('tools')
+  await step('copy friend workout', async () => {
+    await page.goto(base + '#/w/seed16')
+    await page.getByRole('button', { name: /Gjør samme økt som David/ }).click()
+    await page.waitForURL(/#\/okt/)
+    const n = await page.locator('.ex-card').count()
+    if (n < 2) throw new Error('copied workout has ' + n + ' exercises')
+  })
+  await shot('copied')
   // overflow check
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
   if (overflow) errors.push('horizontal overflow on exercise page')
-  for (const r of ['feed', 'topp', 'maler', 'profil', 'okt']) {
+  for (const r of ['feed', 'topp', 'maler', 'profil', 'okt', 'verktoy']) {
     await page.goto(base + '#/' + r)
     await page.waitForTimeout(150)
     const of = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)

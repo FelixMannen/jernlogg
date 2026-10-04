@@ -16,7 +16,7 @@ import {
   doneWorkouts,
   fmtDuration,
 } from '../lib/stats'
-import { toggleReaction, reactionsFor, commentsFor, addComment, deleteWorkout, templateFromWorkout, reopenWorkout, updateWorkout } from '../lib/actions'
+import { toggleReaction, reactionsFor, commentsFor, addComment, deleteWorkout, templateFromWorkout, reopenWorkout, updateWorkout, startWorkout, addExercises } from '../lib/actions'
 
 export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boolean }) {
   useStoreVersion()
@@ -203,6 +203,33 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
           </div>
         )}
 
+        {!mine && w.status === 'done' && (
+          <button
+            className="btn block"
+            onClick={() => {
+              const nid = startWorkout(me as UserId)
+              updateWorkout(nid, (x) => {
+                if (x.exercises.length === 0) x.title = `${w.title} (som ${u.name})`
+              })
+              const fresh = getDoc<Workout>(nid)?.data
+              if (fresh && fresh.exercises.length === 0) addExercises(
+                  nid,
+                  me,
+                  [...new Set(w.exercises.map((e) => e.exerciseId))],
+                  Object.fromEntries(
+                    w.exercises.map((e) => {
+                      const work = e.sets.filter((s) => !s.warmup)
+                      return [e.exerciseId, { sets: Math.max(1, work.length) }]
+                    }),
+                  ),
+                )
+              else toast('Du har allerede en økt i gang')
+              go('okt')
+            }}
+          >
+            Gjør samme økt som {u.name}
+          </button>
+        )}
         {mine && w.status === 'done' && (
           <div className="stack" style={{ marginTop: 8 }}>
             <div className="row">
