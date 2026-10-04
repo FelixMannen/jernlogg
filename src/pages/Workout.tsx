@@ -20,9 +20,10 @@ import {
   profile,
   doneWorkouts,
   fmtRelDate,
+  fmtDate,
   PR_LABEL,
 } from '../lib/stats'
-import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest } from '../lib/actions'
+import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout } from '../lib/actions'
 
 export function WorkoutPage() {
   useStoreVersion()
@@ -100,6 +101,7 @@ function StartScreen() {
             </div>
           </section>
         )}
+        <BackdateCard />
         {tpls.length === 0 && recent.length === 0 && (
           <div className="empty">
             <h3>Første økt?</h3>
@@ -191,7 +193,7 @@ function Logger({ id }: { id: string }) {
       <div className="page">
         <div className="wk-head">
           <div className="stat">
-            <div className="v">{editing ? '✎' : fmtDuration(now - Date.parse(w.startedAt))}</div>
+            <div className="v">{editing ? fmtDate(w.startedAt) : fmtDuration(now - Date.parse(w.startedAt))}</div>
             <div className="l">{editing ? 'Redigerer' : 'Tid'}</div>
           </div>
           <div className="stat">
@@ -663,5 +665,40 @@ function Tip() {
         </button>
       </div>
     </div>
+  )
+}
+
+function BackdateCard() {
+  const { me } = useMe()
+  const [open, setOpen] = useState(false)
+  const yesterday = new Date(Date.now() - 86400000)
+  const [date, setDate] = useState(yesterday.toISOString().slice(0, 10))
+  if (!open)
+    return (
+      <button className="btn ghost block" onClick={() => setOpen(true)}>
+        Logg en tidligere økt eller gamle rekorder
+      </button>
+    )
+  return (
+    <section className="card stack">
+      <h3>Logg en tidligere økt</h3>
+      <p className="small muted" style={{ margin: 0 }}>
+        Fint for å legge inn rekordene du allerede har, så topplister og PR-er stemmer fra dag én.
+      </p>
+      <label className="field">
+        <span>Dato</span>
+        <input className="input" type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} />
+      </label>
+      <button
+        className="btn primary block"
+        disabled={!date}
+        onClick={() => {
+          const id = startBackdatedWorkout(me as UserId, `${date}T17:00:00`)
+          if (!id) toast('Fullfør økta du har i gang først')
+        }}
+      >
+        Start registrering
+      </button>
+    </section>
   )
 }

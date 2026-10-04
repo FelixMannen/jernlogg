@@ -56,3 +56,6 @@
 ## Runde 9
 - «Gjør samme økt som David»: start en kompis' økt med samme øvelser og antall sett (vektene hentes fra din egen historikk)
 - Verktøy-side: skivekalkulator (20/15/10 kg stang) og 1RM-kalkulator med prosenttabell – lenket fra profilen
+
+## Runde 10
+- «Logg en tidligere økt eller gamle rekorder»: velg dato og registrer, så topplister og PR-er stemmer fra dag én

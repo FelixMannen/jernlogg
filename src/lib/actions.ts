@@ -177,3 +177,21 @@ export function reopenWorkout(id: string): boolean {
   })
   return true
 }
+
+/** Log a workout in the past: created in edit mode so it keeps its date when saved. */
+export function startBackdatedWorkout(userId: UserId, dateIso: string): string | null {
+  if (activeWorkout(userId)) return null
+  const id = uid('w')
+  const start = new Date(dateIso)
+  const w: Workout = {
+    userId,
+    title: 'Tidligere økt',
+    startedAt: start.toISOString(),
+    endedAt: null,
+    status: 'active',
+    exercises: [],
+    reopenedFrom: new Date(start.getTime() + 3600e3).toISOString(),
+  }
+  put('workouts', id, w)
+  return id
+}
