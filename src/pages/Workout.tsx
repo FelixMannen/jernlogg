@@ -428,8 +428,14 @@ function ExerciseCard({
                 <button
                   className="btn small ghost"
                   onClick={() => {
+                    const idx = ex.sets.findIndex((x) => x.uid === s.uid)
+                    const removed = { ...s }
                     upd((e) => void (e.sets = e.sets.filter((x) => x.uid !== s.uid)))
                     setFocus(null)
+                    toast('Settet er slettet', undefined, {
+                      label: 'Angre',
+                      run: () => upd((e) => void e.sets.splice(Math.min(idx, e.sets.length), 0, removed)),
+                    })
                   }}
                 >
                   <Icon.trash /> Slett sett
@@ -469,6 +475,32 @@ function ExerciseCard({
             >
               <Icon.plus /> Legg til oppvarmingssett
             </button>
+            {(info.equipment === 'Stang' || info.equipment === 'Manualer' || info.equipment === 'Maskin') && (
+              <button
+                className="list-item"
+                onClick={() => {
+                  const top = ex.sets.find((x) => !x.warmup)?.weight ?? lastWork[0]?.weight
+                  if (!top) {
+                    toast('Fyll inn arbeidsvekt først')
+                    setMenu(false)
+                    return
+                  }
+                  upd((e) => {
+                    e.sets = e.sets.filter((x) => !(x.warmup && !x.done))
+                    const bar = info.equipment === 'Stang' ? 20 : 0
+                    const plan: [number, number][] = info.equipment === 'Stang' ? [[0, 10], [0.4, 5], [0.6, 3], [0.8, 2]] : [[0.5, 10], [0.75, 5]]
+                    const warm = plan
+                      .map(([pct, reps]) => ({ w: pct === 0 ? bar : Math.max(bar, Math.round((top * pct) / 2.5) * 2.5), reps }))
+                      .filter((x, i, arr) => x.w < top && (i === 0 || x.w > arr[i - 1].w))
+                    e.sets.unshift(...warm.map((x) => ({ ...newSet({ weight: x.w, reps: x.reps }), warmup: true })))
+                  })
+                  toast('Oppvarming lagt til')
+                  setMenu(false)
+                }}
+              >
+                <Icon.timer /> Generer oppvarming
+              </button>
+            )}
             <button className="list-item" onClick={() => (setMenu(false), onReplace())}>
               <Icon.search /> Bytt øvelse
             </button>

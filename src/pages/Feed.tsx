@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMe, TopBar, Avatar, go, Icon, useNow } from '../components/ui'
 import { useStoreVersion, getStatus, type Doc } from '../lib/store'
-import { USERS, userById, REACTIONS, type Workout, type UserId } from '../lib/domain'
+import { USERS, userById, REACTIONS, FEELINGS, type Workout, type UserId } from '../lib/domain'
 import {
   doneWorkouts,
   activeWorkouts,
@@ -114,6 +114,7 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
         <div className="grow">
           <div style={{ fontWeight: 700 }}>
             {u.name} <span className="muted" style={{ fontWeight: 500 }}>· {w.data.title}</span>
+            {w.data.feeling ? <span style={{ marginLeft: 6 }}>{FEELINGS[w.data.feeling - 1]}</span> : null}
           </div>
           <div className="tiny muted">
             {fmtRelDate(w.data.startedAt)} · {fmtDurationShort(dur)} · {fmtVolume(workoutVolume(w.data))} · {workoutSetCount(w.data)} sett
@@ -131,6 +132,7 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
           {prs.length > 3 && <span className="badge-pr">+{prs.length - 3}</span>}
         </div>
       )}
+      {w.data.notes && <p className="feed-note">«{w.data.notes}»</p>}
       <ul className="feed-ex">
         {exs.slice(0, 4).map((ex) => (
           <li key={ex.uid}>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMe, TopBar, Avatar, back, go, Icon, confirmDialog, toast, Sheet, useNow } from '../components/ui'
 import { useStoreVersion, getDoc } from '../lib/store'
-import { userById, REACTIONS, type Workout, type UserId } from '../lib/domain'
+import { userById, REACTIONS, FEELINGS, FEELING_LABEL, type Workout, type UserId } from '../lib/domain'
 import {
   exerciseById,
   workoutVolume,
@@ -16,7 +16,7 @@ import {
   doneWorkouts,
   fmtDuration,
 } from '../lib/stats'
-import { toggleReaction, reactionsFor, commentsFor, addComment, deleteWorkout, templateFromWorkout, reopenWorkout } from '../lib/actions'
+import { toggleReaction, reactionsFor, commentsFor, addComment, deleteWorkout, templateFromWorkout, reopenWorkout, updateWorkout } from '../lib/actions'
 
 export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boolean }) {
   useStoreVersion()
@@ -83,6 +83,36 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
             <div className="l">Sett</div>
           </div>
         </div>
+
+        {mine && w.status === 'done' && (summary || !w.feeling) && (
+          <div className="card">
+            <h3 style={{ marginBottom: 8 }}>Hvordan føltes økta?</h3>
+            <div className="feeling">
+              {FEELINGS.map((f, i) => (
+                <button key={i} className={w.feeling === i + 1 ? 'on' : ''} onClick={() => updateWorkout(id, (x) => void (x.feeling = i + 1))} aria-label={FEELING_LABEL[i]} title={FEELING_LABEL[i]}>
+                  {f}
+                </button>
+              ))}
+            </div>
+            <textarea
+              className="input"
+              style={{ marginTop: 8, minHeight: 60 }}
+              placeholder="Notat (valgfritt) – f.eks. sov dårlig, ny sko, vondt i skulder"
+              defaultValue={w.notes}
+              onBlur={(e) => updateWorkout(id, (x) => void (x.notes = e.target.value.trim() || undefined))}
+            />
+          </div>
+        )}
+        {!(mine && (summary || !w.feeling)) && (w.feeling || w.notes) && (
+          <div className="card small">
+            {w.feeling ? (
+              <span style={{ fontSize: '1.25rem' }}>
+                {FEELINGS[w.feeling - 1]} <span className="muted small">{FEELING_LABEL[w.feeling - 1]}</span>
+              </span>
+            ) : null}
+            {w.notes && <p style={{ margin: w.feeling ? '6px 0 0' : 0 }}>{w.notes}</p>}
+          </div>
+        )}
 
         {prs.length > 0 && (
           <div className="card" style={{ background: 'color-mix(in srgb, var(--gold) 12%, var(--rubber))' }}>

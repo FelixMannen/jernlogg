@@ -207,17 +207,17 @@ export function ConfirmHost() {
 }
 
 /* ---------- toasts ---------- */
-type Toast = { id: number; text: string; kind?: 'pr' }
+type Toast = { id: number; text: string; kind?: 'pr'; action?: { label: string; run: () => void } }
 let toasts: Toast[] = []
 const toastListeners = new Set<() => void>()
-export function toast(text: string, kind?: 'pr') {
-  const t = { id: Date.now() + Math.random(), text, kind }
+export function toast(text: string, kind?: 'pr', action?: { label: string; run: () => void }) {
+  const t: Toast = { id: Date.now() + Math.random(), text, kind, action }
   toasts = [...toasts, t]
   toastListeners.forEach((l) => l())
   setTimeout(() => {
     toasts = toasts.filter((x) => x.id !== t.id)
     toastListeners.forEach((l) => l())
-  }, 2600)
+  }, action ? 5000 : 2600)
 }
 export function ToastHost() {
   const [, setN] = useState(0)
@@ -233,6 +233,18 @@ export function ToastHost() {
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.kind ?? ''}`}>
           {t.text}
+          {t.action && (
+            <button
+              className="toast-action"
+              onClick={() => {
+                t.action!.run()
+                toasts = toasts.filter((x) => x.id !== t.id)
+                toastListeners.forEach((l) => l())
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

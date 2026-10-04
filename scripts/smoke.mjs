@@ -102,6 +102,10 @@ try {
     await page.waitForTimeout(300)
   })
   await shot('logger-done')
+  {
+    const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth, vv: window.visualViewport?.scale, wide: [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).slice(0, 5).map((e) => e.className || e.tagName) }))
+    if (m.sw > m.iw + 1 || m.wide.length) errors.push('logger overflow ' + JSON.stringify(m))
+  }
   await step('finish', async () => {
     await page.getByRole('button', { name: 'Fullfør', exact: true }).click()
     const dlg = page.getByRole('alertdialog')

@@ -129,6 +129,7 @@ export type Workout = {
   templateId?: string
   notes?: string
   exercises: WorkoutExercise[]
+  feeling?: number // 1-5
   reopenedFrom?: string // set while a finished workout is being edited (original endedAt)
 }
 
@@ -151,3 +152,5 @@ export type Reaction = { workoutId: string; userId: UserId; emoji: string }
 export type Comment = { workoutId: string; userId: UserId; text: string; at: string }
 
 export const REACTIONS = ['💪', '🔥', '😤', '👏']
+export const FEELINGS = ['😵', '😮‍💨', '🙂', '😎', '🦍']
+export const FEELING_LABEL = ['Tung dag', 'Slitsomt', 'Grei', 'Sterk', 'Beist']

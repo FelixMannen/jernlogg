@@ -1,8 +1,8 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
-import { MeContext, useMe, useRoute, Icon, ToastHost, ConfirmHost, useNow, vibrate, beep } from './components/ui'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { MeContext, useMe, useRoute, Icon, ToastHost, ConfirmHost, useNow, vibrate, beep, toast } from './components/ui'
 import { init, useStoreVersion, getStatus } from './lib/store'
 import { USERS, userById } from './lib/domain'
-import { activeWorkout, fmtDuration } from './lib/stats'
+import { activeWorkout, fmtDuration, doneWorkouts, activeWorkouts, prsForWorkout } from './lib/stats'
 import { getRest, subscribeRest, adjustRest, stopRest } from './lib/actions'
 import { FeedPage } from './pages/Feed'
 import { WorkoutPage } from './pages/Workout'
@@ -74,8 +74,39 @@ function UserPicker({ onPick }: { onPick: (id: string) => void }) {
   )
 }
 
+function useFriendNotifications(me: string) {
+  const v = useStoreVersion()
+  const seen = useRef<{ done: Set<string>; live: Set<string> } | null>(null)
+  useEffect(() => {
+    if (getStatus().status === 'loading') return
+    const done = doneWorkouts().filter((w) => w.data.userId !== me)
+    const live = activeWorkouts().filter((w) => w.data.userId !== me)
+    if (!seen.current) {
+      seen.current = { done: new Set(done.map((w) => w.id)), live: new Set(live.map((w) => w.id)) }
+      return
+    }
+    for (const w of done) {
+      if (seen.current.done.has(w.id)) continue
+      seen.current.done.add(w.id)
+      if (Date.now() - Date.parse(w.data.endedAt ?? w.data.startedAt) > 15 * 60000) continue
+      const prs = prsForWorkout(w.id, w.data)
+      toast(`${userById(w.data.userId).name} fullførte ${w.data.title}${prs.length ? ` med ${prs.length} PR 🏆` : ' 💪'}`, prs.length ? 'pr' : undefined, {
+        label: 'Se',
+        run: () => (location.hash = `/w/${w.id}`),
+      })
+    }
+    for (const w of live) {
+      if (seen.current.live.has(w.id)) continue
+      seen.current.live.add(w.id)
+      toast(`${userById(w.data.userId).name} har startet en økt 🔥`)
+    }
+  }, [v, me])
+}
+
 function Shell() {
   useStoreVersion()
+  const { me } = useMe()
+  useFriendNotifications(me)
   const route = useRoute()
   const [r0, r1, r2] = route
   useEffect(() => {

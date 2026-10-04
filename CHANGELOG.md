@@ -21,3 +21,9 @@
 - Ukesmål: alle tre har et mål (standard 3 økter/uke, endres i innstillinger), vist øverst i feeden
 - Progresjonsforslag i loggeren: «Klarte 3×8 @ 80 sist – prøv 82,5 kg»
 - Profil: kalender over treningsdager (18 uker) og sett per muskelgruppe siste 4 uker
+
+## Runde 3
+- «Generer oppvarming» i øvelsesmenyen: stang × 10, 40 % × 5, 60 % × 3, 80 % × 2 av arbeidsvekta
+- Angre når du sletter et sett
+- Etter økta: velg hvordan den føltes (😵 → 🦍) og skriv et notat – vises i feeden
+- Varsler i appen når en kompis starter eller fullfører en økt (med antall PR-er)
