@@ -42,3 +42,8 @@
 - Neste sett er markert i loggeren, og når siste sett på en øvelse hukes av, scroller appen til neste øvelse
 - Varsel når noen reagerer på eller kommenterer økta di
 - Verifisert live: sanntidssynk mellom to enheter fungerer (endringer dukker opp på ~1–3 s uten refresh), og offline-cache er aktiv
+
+## Runde 7
+- Utvidet automatisk test: mal → start økt → generer oppvarming → fullfør → velg følelse → rediger → lagre
+- Oppvarmingssett heter nå V1, V2 … (O1 så ut som 01)
+- Engangstips i loggeren som forklarer oppvarming, «Forrige» og hviletimer

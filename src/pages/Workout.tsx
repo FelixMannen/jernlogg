@@ -203,6 +203,7 @@ function Logger({ id }: { id: string }) {
           </div>
         </div>
 
+        {w.exercises.length > 0 && <Tip />}
         {w.exercises.map((ex, i) => (
           <ExerciseCard
             key={ex.uid}
@@ -369,7 +370,7 @@ function ExerciseCard({
         <span />
       </div>
       {ex.sets.map((s) => {
-        const label = s.warmup ? `O${++warmIdx}` : String(++workIdx)
+        const label = s.warmup ? `V${++warmIdx}` : String(++workIdx)
         const prevRef = s.warmup ? lastWarm[warmIdx - 1] : lastWork[workIdx - 1]
         const isPR = s.done && livePRCheck(me, ex.exerciseId, s, workoutId, allSetsThisExercise.filter((o) => (o.doneAt ?? '') < (s.doneAt ?? ''))).length > 0
         const focused = focus?.set === s.uid
@@ -627,6 +628,38 @@ function RecordLine({ exerciseId, me }: { exerciseId: string; me: UserId }) {
           {v === max && rows.length > 1 ? ' 👑' : ''}
         </span>
       ))}
+    </div>
+  )
+}
+
+function Tip() {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem('jernlogg.tip1') === '1'
+    } catch {
+      return true
+    }
+  })
+  if (hidden) return null
+  return (
+    <div className="card small" style={{ marginBottom: 12, background: 'var(--me-soft)' }}>
+      <div className="spread" style={{ alignItems: 'flex-start' }}>
+        <div>
+          <b>Tips:</b> Trykk på settnummeret for å gjøre det til oppvarming (V). Trykk på «Forrige» for å kopiere forrige gang. Hviletimeren starter når du huker av.
+        </div>
+        <button
+          className="icon-btn"
+          aria-label="Skjul tips"
+          onClick={() => {
+            try {
+              localStorage.setItem('jernlogg.tip1', '1')
+            } catch {}
+            setHidden(true)
+          }}
+        >
+          <Icon.x />
+        </button>
+      </div>
     </div>
   )
 }

@@ -143,7 +143,7 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
               </button>
               {ex.note && <div className="small muted" style={{ marginBottom: 6 }}>{ex.note}</div>}
               {visible.map((s) => {
-                const label = s.warmup ? 'O' : String(++n)
+                const label = s.warmup ? 'V' : String(++n)
                 const isPR = prs.some((p) => p.setUid === s.uid)
                 return (
                   <div key={s.uid} className="spread num" style={{ padding: '4px 0', fontSize: '1.0625rem', color: s.warmup ? 'var(--dust)' : undefined }}>
