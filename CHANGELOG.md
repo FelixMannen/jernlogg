@@ -118,3 +118,12 @@
 - Fjernet +/- knappene som dukket opp under kg/reps når man skrev – logge-raden flytter seg ikke lenger. Oppvarming, skiver og «Slett sett» ligger nå bak et trykk på settnummeret
 - Fiks: appen startet ikke alltid uten nett første gang etter installasjon (service workeren cacher nå JS/CSS med en gang og ignorerer Vary-header ved oppslag)
 - Ny test: `scripts/keyboard-e2e.mjs` simulerer iPhone-tastaturet
+
+## Runde 20 – supplementer (steg 1 av mat og supplementer)
+- Profil → «💊 Supplementer»: legg inn det du tar (forslag: kreatin, proteinpulver, omega-3, vitamin D …), mengde, enhet og klokkeslett – én eller flere doser per dag
+- Kryss av «tatt» på profilen, i «I dag»-kortet øverst i feeden (vises bare når noe gjenstår) eller på `#/supplementer`
+- Streak og 6-ukers kalender per supplement, «Tok den i går», trykk på en dag for å rette opp, pause som ikke bryter streaken
+- Lagerteller: hvor mye som er igjen og ca. antall dager; varsel når det er ≤ 7 dager igjen; «Ny boks»
+- Påminnelse hvis en dose ikke er krysset av innen klokkeslettet – slås sammen med treningspåminnelsen når de kommer samtidig. «Tatt ✓»-knapp rett i varselet på Android/PC (iPhone: trykk på varselet)
+- Supplementer er private – bare du ser dine
+- Ny bryter under Varsler: «Supplementer»

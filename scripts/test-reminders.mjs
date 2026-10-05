@@ -68,5 +68,27 @@ d = decideReminders(now, USERS, {
   logs: [],
 })
 ok('reminder counts a run as last workout and mentions split goal', d[0]?.payload.body === '2 dager siden sist. Du mangler 2 styrkeøkter og 1 løpetur på ukesmålet.', d[0]?.payload.body)
+// supplements
+const { decideSupplements, buildPayload } = await import('../api/_supplements.js')
+const kreatin = { id: 'sup1', data: { userId: 'felix', name: 'Kreatin', amount: 5, unit: 'g', doses: [{ hour: 8 }], createdAt: '2026-10-01', stock: { total: 50, refillAt: '2026-10-01' } } }
+const omega = { id: 'sup2', data: { userId: 'felix', name: 'Omega-3', amount: 2, unit: 'kapsler', doses: [{ hour: 8 }, { hour: 20 }], createdAt: '2026-10-01' } }
+const base = { subs: [sub('felix')], profiles: [prof('felix', { tz, hour: 18, days: 2 })], logs: [] }
+let s1 = decideSupplements(now, USERS, { ...base, supplements: [kreatin, omega], supLogs: [] })
+ok('supp: due doses at 18:30 (kreatin 08, omega 08; not omega 20)', s1[0]?.items.map((i) => i.supId + ':' + i.dose).join(',') === 'sup1:0,sup2:0', JSON.stringify(s1))
+s1 = decideSupplements(now, USERS, { ...base, supplements: [kreatin], supLogs: [{ id: 'sl:sup1:2026-10-07:0', data: { supId: 'sup1', date: '2026-10-07' } }] })
+ok('supp: taken today → no reminder', !s1[0] || s1[0].items.length === 0)
+s1 = decideSupplements(now, USERS, { ...base, supplements: [kreatin], supLogs: [], logs: [{ id: 'supp:sup1:2026-10-07:0' }] })
+ok('supp: already reminded → not again', !s1[0] || s1[0].items.length === 0)
+s1 = decideSupplements(now, USERS, { ...base, supplements: [{ ...kreatin, data: { ...kreatin.data, pauses: [{ from: '2026-10-06' }] } }], supLogs: [] })
+ok('supp: paused → nothing', s1.length === 0)
+const logs6 = Array.from({ length: 6 }, (_, i) => ({ id: `sl:sup1:2026-10-0${i + 1}:0`, data: { supId: 'sup1', date: `2026-10-0${i + 1}` } }))
+s1 = decideSupplements(now, USERS, { ...base, supplements: [kreatin], supLogs: logs6 })
+ok('supp: low stock (50 g − 6×5 g = 20 g → 4 days)', s1[0]?.stock[0]?.daysLeft === 4, JSON.stringify(s1[0]?.stock))
+s1 = decideSupplements(now, USERS, { ...base, supplements: [kreatin], supLogs: [] })
+const train = { userId: 'felix', logId: 'reminder:felix:2026-10-07', payload: { title: 'Du burde trene i dag 💪', body: '3 dager siden sist.', url: '/#/okt', tag: 'reminder' } }
+let pl = buildPayload(train, s1[0])
+ok('merged: one notification with training title + supplement line + Tatt-button', pl.title === 'Du burde trene i dag 💪' && pl.body.includes('Ikke tatt ennå: Kreatin') && pl.actions[0]?.action === 'take' && pl.take.length === 1, JSON.stringify(pl))
+pl = buildPayload(null, s1[0])
+ok('supplement-only notification', pl.title === 'Husk kreatin 💊' && pl.url === '/#/supplementer' && pl.body.includes('5 g'), JSON.stringify(pl))
 console.log(fail ? `\n${fail} FEIL` : '\nAlle påminnelsestester OK')
 process.exit(fail ? 1 : 0)

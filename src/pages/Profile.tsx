@@ -31,6 +31,7 @@ import { addBodyweight, setProfile, sendFeedback, feedbackList } from '../lib/ac
 import { FeedItem } from './Feed'
 import { GoalEditor, GoalCard, RunSection } from './ProfileRun'
 import { NotificationsSection } from '../components/Notifications'
+import { SupplementsSection } from '../components/Supplements'
 
 export function ProfilePage({ userId }: { userId?: string }) {
   useStoreVersion()
@@ -177,6 +178,7 @@ export function ProfilePage({ userId }: { userId?: string }) {
           )}
         </section>
 
+        {mine && <SupplementsSection />}
         {mine && <NotificationsSection />}
         {mine && <FeedbackSection />}
 

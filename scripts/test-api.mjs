@@ -7,14 +7,21 @@ const now = new Date()
 const docs = [
   { id: 'push:felix1', collection: 'push_subscriptions', data: { userId: 'felix', endpoint: 'https://example.invalid/x', keys: {} } },
   { id: 'profile:felix', collection: 'profiles', data: { notify: { tz: 'UTC', hour: 0, days: 1 } } },
+  { id: 'sup1', collection: 'supplements', data: { userId: 'felix', name: 'Kreatin', amount: 5, unit: 'g', doses: [{ hour: 0 }], createdAt: '2026-01-01' } },
   { id: 'route1', collection: 'routes', data: { name: 'Elverunden', distanceKm: 6.4 } },
   { id: 'r1', collection: 'workouts', data: { userId: 'erik', kind: 'run', title: 'Elverunden', status: 'done', startedAt: new Date(now - 1800e3).toISOString(), endedAt: new Date(now - 60e3).toISOString(), exercises: [], run: { routeId: 'route1', distanceKm: 6.4, durationSec: 1755 } }, updated_at: now.toISOString() },
   { id: 'w1', collection: 'workouts', data: { userId: 'david', title: 'Push', status: 'done', startedAt: new Date(now - 3600e3).toISOString(), endedAt: new Date(now - 60e3).toISOString(), exercises: [{ sets: [{ done: true, weight: 100, reps: 5 }] }] }, updated_at: now.toISOString() },
 ]
 const inserted = new Set()
+const upserts = []
 global.fetch = async (url, opts = {}) => {
   const u = new URL(url)
   const json = (b, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } })
+  if (opts.method === 'POST' && u.searchParams.get('on_conflict')) {
+    const body = JSON.parse(opts.body)
+    upserts.push(body)
+    return new Response(null, { status: 201 })
+  }
   if (opts.method === 'POST') {
     const body = JSON.parse(opts.body)
     if (inserted.has(body.id)) return new Response('dup', { status: 409 })
@@ -37,7 +44,7 @@ const call = async (mod, { method = 'GET', query = {}, body } = {}) => {
 let fail = 0
 const ok = (n, c, x) => (c ? console.log('✓', n) : (fail++, console.log('✗', n, JSON.stringify(x))))
 let r = await call('cron', { query: { dry: '1' } })
-ok('cron dry decides felix', r.s === 200 && r.j.decisions.length === 1 && r.j.decisions[0].userId === 'felix', r)
+ok('cron dry plans one merged notification for felix (training + kreatin)', r.s === 200 && r.j.plan.length === 1 && r.j.plan[0].userId === 'felix' && r.j.plan[0].payload.body.includes('Kreatin'), r)
 r = await call('cron')
 ok('cron sends (push to invalid endpoint reported as error, not crash)', r.s === 200 && r.j.results.length === 1, r)
 r = await call('cron')
@@ -48,6 +55,10 @@ r = await call('notify', { method: 'POST', body: { workoutId: 'w1' } })
 ok('notify deduped', r.j.skipped === 'allerede varslet', r)
 r = await call('notify', { method: 'POST', body: { workoutId: 'r1' } })
 ok('notify run', r.s === 200 && r.j.ok && r.j.results.some((x) => x.userId === 'felix'), r)
+r = await call('supp-take', { method: 'POST', body: { userId: 'felix', items: [{ supId: 'sup1', date: '2026-10-07', dose: 0 }] } })
+ok('supp-take saves log', r.s === 200 && r.j.saved === 1 && upserts[0]?.id === 'sl:sup1:2026-10-07:0', r)
+r = await call('supp-take', { method: 'POST', body: { userId: 'david', items: [{ supId: 'sup1', date: '2026-10-07', dose: 0 }] } })
+ok('supp-take refuses other users supplement', r.s === 200 && r.j.saved === 0, r)
 r = await call('push-test', { method: 'POST', body: { userId: 'nobody' } })
 ok('push-test rejects unknown user', r.s === 400, r)
 r = await call('health')

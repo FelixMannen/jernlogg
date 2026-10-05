@@ -22,6 +22,7 @@ import { WorkoutMenuButton } from '../components/WorkoutActions'
 import { goalProgress } from '../lib/runs'
 import { stopwatchElapsed } from '../lib/actions'
 import { RunFeedBody } from './RunFeed'
+import { TodaySupplementsCard } from '../components/Supplements'
 
 export function FeedPage() {
   useStoreVersion()
@@ -58,6 +59,7 @@ export function FeedPage() {
         })}
 
         <InstallBanner />
+        <TodaySupplementsCard />
         <WeekGoals />
 
         <div className="chips" style={{ marginBottom: 12 }}>

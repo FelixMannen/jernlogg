@@ -66,6 +66,17 @@ export async function claimLog(id, data) {
   return true
 }
 
+/** Create or overwrite a doc (also un-deletes it). */
+export async function upsertDoc(id, collection, data) {
+  const now = new Date().toISOString()
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/docs?on_conflict=id`, {
+    method: 'POST',
+    headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ id, collection, data, updated_at: now, deleted: false }),
+  })
+  if (!r.ok) throw new Error(`supabase ${r.status}: ${await r.text()}`)
+}
+
 async function softDelete(id) {
   await fetch(`${SUPABASE_URL}/rest/v1/docs?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH',

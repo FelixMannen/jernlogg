@@ -1475,3 +1475,121 @@ textarea.input {
 .kb-open .rest {
   display: none;
 }
+
+/* supplements */
+.supp {
+  border-top: 1px solid var(--seam);
+  padding-top: 10px;
+}
+.supp:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.supp-head {
+  width: 100%;
+  text-align: left;
+  min-height: 32px;
+}
+.supp-head .small {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.supp-doses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.supp-dose {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 12px 6px 8px;
+  border-radius: var(--radius-m);
+  background: var(--floor-2);
+  font-weight: 600;
+  font-family: var(--font-num);
+  font-size: 1rem;
+}
+.supp-dose .tiny {
+  font-family: var(--font-body);
+  font-weight: 500;
+  color: var(--dust);
+}
+.supp-dose.big {
+  min-height: 56px;
+  flex: 1;
+  font-size: 1.25rem;
+}
+.supp-box {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 2px var(--steel);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.supp-box svg {
+  width: 18px;
+  height: 18px;
+}
+.supp-dose.on {
+  background: color-mix(in srgb, var(--good) 16%, transparent);
+}
+.supp-dose.on .supp-box {
+  background: var(--good);
+  box-shadow: none;
+  color: #0d2416;
+}
+.supp-low {
+  color: var(--gold);
+  margin-top: 6px;
+}
+.supp-today {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+}
+.supp-cal-head,
+.supp-cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+.supp-day {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: var(--floor-2);
+  font-family: var(--font-num);
+  font-size: 0.875rem;
+  color: var(--dust);
+}
+.supp-day.full {
+  background: var(--good);
+  color: #0d2416;
+  font-weight: 700;
+}
+.supp-day.partial {
+  background: color-mix(in srgb, var(--gold) 55%, var(--floor-2));
+  color: #2a1f00;
+}
+.supp-day.missed {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 55%, transparent);
+}
+.supp-day.paused {
+  background: repeating-linear-gradient(135deg, var(--rubber-2) 0 4px, var(--floor-2) 4px 8px);
+}
+.supp-day.before,
+.supp-day.future {
+  opacity: 0.35;
+}
+.supp-day.today {
+  outline: 2px solid var(--chalk);
+  outline-offset: 1px;
+}
+.supp-day:disabled {
+  cursor: default;
+}

@@ -19,6 +19,7 @@ Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-t
 
 ## Arbeidsflyt
 - `npm run build` og `node scripts/smoke.mjs --seed <mappe>` (Playwright, mobilviewport, lokal modus) før hver push.
+- Supplementer: `node scripts/supp-e2e.mjs` (legg til, avkrysning i feed/profil, streak, i går, flere doser, pause, ny boks, personvern).
 - Løping/rediger/slett: `node scripts/run-e2e.mjs` (rute, stoppeklokke, ufullstendige data, topplister, ukesmål, rediger/slett, import av løpetur).
 - Endrer du import fra tekst: `npx tsx scripts/test-import.ts` (parser) og `node scripts/import-e2e.mjs` (hele #/import-flyten). Formatet er beskrevet i `src/lib/importText.ts` og må være bakoverkompatibelt – lenker Claude har laget skal fortsette å virke.
 - Tastatur/mobil: `node scripts/keyboard-e2e.mjs` simulerer iPhone-tastaturet. Regel (fra Erik): alt man kan trykke på mens man skriver – søketreff, knapper i ark – skal alltid vises OVER tastaturet. Ark/overlays bruker `--vv-top`/`--vv-h` (synlig viewport), aldri `bottom: 0` mot hele skjermen.
@@ -31,11 +32,16 @@ Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-t
 - Se «Løping (fase 1)» i `SPEC.md`. Hjelpefunksjoner i `src/lib/runs.ts`, sider i `src/pages/Run.tsx`, `RunBoards.tsx`, `RunFeed.tsx`, `ProfileRun.tsx`.
 - Fase 2 (Strava, intervaller, tredemølle) skal IKKE bygges før brukeren ber om det.
 
+## Supplementer
+- Se «Supplementer» i `SPEC.md`. Logikk i `src/lib/supplements.ts`, UI i `src/components/Supplements.tsx`, påminnelser i `api/_supplements.js` (slått sammen med treningsvarselet i `api/cron.js`).
+- Supplementer er private: vis dem aldri på andres profil, i feeden til andre eller i topplister.
+- Mat er neste steg og skal ikke bygges før brukeren ber om det.
+
 ## PWA og push-varsler
 - Service worker: `public/sw.js` (network-first for sider, cache-first kun for hashede `/assets/*`, push + notificationclick). Registreres bare i produksjonsbygg og ikke med `?local=1`. Bump `VERSION` ved større endringer.
 - Push: Web Push/VAPID. Offentlig nøkkel i `src/config.ts` og `api/_lib.js`; privat nøkkel KUN som `VAPID_PRIVATE_KEY` i Vercel (aldri i repoet).
 - Abonnementer: `collection = 'push_subscriptions'` (id `push:<hash av endpoint>`). Logg over sendte varsler (dedupe): `collection = 'push_log'`.
 - Brukerinnstillinger: `profiles`-dokumentet, feltet `notify { reminders, days, hour, friends, tz }`.
-- API (Vercel-funksjoner i `api/`): `push-test` (testvarsel), `notify` (kompis fullførte økt), `cron` (daglige påminnelser, `?dry=1` viser hva som ville blitt sendt), `health`.
+- API (Vercel-funksjoner i `api/`): `push-test` (testvarsel), `notify` (kompis fullførte økt), `cron` (påminnelser for trening + supplementer, `?dry=1` viser hva som ville blitt sendt), `supp-take` («Tatt ✓» fra varsel), `health`.
 - Planlegging: Supabase `pg_cron`-jobben `jernlogg-reminders` kaller `/api/cron` hver time (SQL i `supabase/cron.sql`), og Vercel Cron kaller den én gang i døgnet som reserve. Hver bruker får maks én påminnelse per lokale dato.
 - Tester: `node scripts/test-reminders.mjs`, `node scripts/test-api.mjs`, `node scripts/pwa-check.mjs`. Ekte push må testes på https://jernlogg.vercel.app (ikke localhost).

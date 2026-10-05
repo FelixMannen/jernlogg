@@ -3,7 +3,7 @@
 // - Hashed assets (/assets/*-HASH.js|css) are immutable, so cache-first is safe for them.
 // - Push notifications + tap-to-open.
 // Only registered in production builds (see src/main.tsx).
-const VERSION = 'v3'
+const VERSION = 'v4'
 const CACHE = `jernlogg-${VERSION}`
 
 // Pre-cache the app shell *and* the hashed JS/CSS it references, so the app can start offline
@@ -86,13 +86,25 @@ self.addEventListener('push', (e) => {
     badge: '/badge-96.png',
     tag: data.tag || 'jernlogg',
     renotify: !!data.tag,
-    data: { url: data.url || '/#/feed' },
+    data: { url: data.url || '/#/feed', take: data.take || [], userId: data.userId },
+    // «Tatt ✓» on Android/desktop. iPhone shows no buttons – tapping opens the app instead.
+    actions: Array.isArray(data.actions) ? data.actions.slice(0, 2) : [],
   }
   e.waitUntil(self.registration.showNotification(title, options))
 })
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
+  const d = e.notification.data || {}
+  if (e.action === 'take' && d.take && d.take.length) {
+    e.waitUntil(
+      fetch('/api/supp-take', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: d.userId, items: d.take }) })
+        .then((r) => (r.ok ? self.registration.showNotification('Krysset av ✓', { body: 'Bra! Streaken lever.', icon: '/icon-192.png', badge: '/badge-96.png', tag: 'supp-ok' }) : Promise.reject()))
+        .then(() => setTimeout(() => self.registration.getNotifications({ tag: 'supp-ok' }).then((ns) => ns.forEach((n) => n.close())), 4000))
+        .catch(() => self.clients.openWindow('/#/supplementer')),
+    )
+    return
+  }
   const target = new URL(e.notification.data?.url || '/#/feed', self.location.origin).href
   e.waitUntil(
     (async () => {

@@ -184,7 +184,7 @@ export type Profile = {
   weeklyGoal?: number // legacy: total sessions per week
   goal?: WeeklyGoal
   restByExercise?: Record<string, number>
-  notify?: { reminders: boolean; days: number; hour: number; friends: boolean; tz: string }
+  notify?: { reminders: boolean; days: number; hour: number; friends: boolean; tz: string; supplements?: boolean }
 }
 
 export type BodyweightEntry = { userId: UserId; date: string; weight: number }

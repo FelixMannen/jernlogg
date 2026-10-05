@@ -15,6 +15,7 @@ import { ProfilePage } from './pages/Profile'
 import { ExerciseDetailPage } from './pages/ExerciseDetail'
 import { ToolsPage } from './pages/Tools'
 import { FeedbackPage } from './pages/Feedback'
+import { SupplementsTodayPage } from './components/Supplements'
 import { ImportPage } from './pages/Import'
 import { RunStartPage, RunFormPage } from './pages/Run'
 import { stopwatchElapsed } from './lib/actions'
@@ -165,6 +166,9 @@ function Shell() {
     case 'u':
       page = <ProfilePage key={r1} userId={r1} />
       break
+    case 'supplementer':
+      page = <SupplementsTodayPage />
+      break
     case 'tilbakemeldinger':
       page = <FeedbackPage />
       break
@@ -197,7 +201,7 @@ function Nav({ current }: { current: string }) {
         <NavLink to="topp" label="Topplister" icon={<Icon.trophy />} on={current === 'topp' || current === 'ex'} />
         <StartLink on={current === 'okt' || current === 'import' || current === 'lop'} />
         <NavLink to="maler" label="Maler" icon={<Icon.list />} on={current === 'maler'} />
-        <NavLink to="profil" label="Profil" icon={<Icon.user />} on={current === 'profil' || current === 'u' || current === 'verktoy' || current === 'tilbakemeldinger'} />
+        <NavLink to="profil" label="Profil" icon={<Icon.user />} on={current === 'profil' || current === 'u' || current === 'verktoy' || current === 'tilbakemeldinger' || current === 'supplementer'} />
       </div>
     </nav>
   )

@@ -173,6 +173,15 @@ export function NotificationsSection() {
           )}
           <label className="toggle-row">
             <span>
+              <b>Supplementer</b>
+              <span className="tiny muted" style={{ display: 'block' }}>
+                Påminnelse hvis du ikke har krysset av innen klokkeslettet, og når boksen snart er tom
+              </span>
+            </span>
+            <input type="checkbox" checked={prefs.supplements !== false} onChange={(e) => setNotifyPrefs(me, { supplements: e.target.checked })} />
+          </label>
+          <label className="toggle-row">
+            <span>
               <b>Når en kompis har trent</b>
               <span className="tiny muted" style={{ display: 'block' }}>
                 «David trente akkurat 💪 – din tur!»

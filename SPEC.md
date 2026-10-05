@@ -76,3 +76,12 @@ Når v1 er live, gjenta i ~45 min:
 - Ukesmål (`profile.goal`): Samlet (N økter), Fordelt (X styrke + Y løping) eller Med minimum (N økter, minst M løping), pluss valgfritt km-mål. Gammelt `weeklyGoal` brukes som Samlet.
 - Topplister: bryter Styrke | Løping. Løping: km uke/måned (inkl. ca.), rute-rekorder, lengste tur, beste 5 km/10 km/halvmaraton (fra målte turer på D–1,15·D km, regnet om etter snittempo), beste snittempo (3+ km).
 - Fase 2 (ikke bygget): Strava-import, intervaller drag for drag, tredemølle-flagg.
+
+## Supplementer (steg 1 av mat og supplementer – bygget 2026-10-05)
+- Bare egne supplementer vises (egen profil + «I dag»-kort i feeden). Ikke synlig for de andre i appen.
+- `collection = 'supplements'`: `{ userId, name, amount?, unit?, doses: [{ hour }], stock?: { total, refillAt }, pauses?: [{ from, to? }], createdAt }`.
+- `collection = 'supplement_logs'`: id `sl:<supId>:<yyyy-mm-dd>:<doseIndex>` – avkrysning per dose per dag (fjernes med myk sletting).
+- Streak per supplement = dager på rad med alle doser tatt; i dag bryter ikke før den er over; pausedager hoppes over. Kalender 6 uker, trykk på dag (siste 30 dager) for å krysse av/fjerne, «Tok den i går».
+- Lager: total i samme enhet som dosen, telles fra `refillAt`; varsel én gang når ≤ 7 dager igjen; «Ny boks» nullstiller.
+- Påminnelser (hele timer): hvis en dose ikke er krysset av når timen er nådd. Slås sammen med treningspåminnelsen når begge går samme time. «Tatt ✓»-knapp i varselet (Android/PC) via `/api/supp-take`; iPhone åpner `#/supplementer`. Kan slås av under Varsler.
+- Mat: senere steg (ikke bygget).
