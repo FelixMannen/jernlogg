@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { TopBar, back, useMe, go } from '../components/ui'
 import { LineChart } from '../components/charts'
 import { useStoreVersion } from '../lib/store'
-import { USERS, type UserId } from '../lib/domain'
+import { type UserId } from '../lib/domain'
+import { useScope, scopeUsers } from '../lib/scope'
 import { exerciseById, exerciseHistory, recordsFrom, fmtKg, fmtRelDate, e1rm } from '../lib/stats'
 
 export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string }) {
@@ -10,6 +11,9 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
   const { me } = useMe()
   const [who, setWho] = useState<UserId>((userId ?? me) as UserId)
   const [compare, setCompare] = useState(false)
+  const [scope] = useScope(me)
+  const scoped = scopeUsers(me, scope)
+  const USERS = scoped.some((u) => u.id === who) ? scoped : [...scoped, ...scopeUsers(me, 'alle').filter((u) => u.id === who)]
   const info = exerciseById(id)
   const bw = !!info.bodyweight
   const [metric, setMetric] = useState<'e1rm' | 'top' | 'volume' | 'reps' | 'totalReps'>(bw ? 'reps' : 'e1rm')
@@ -25,7 +29,7 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
           : metric === 'totalReps'
             ? h.totalReps
             : h.volume
-  const series = (compare ? USERS : USERS.filter((u) => u.id === who))
+  const series = (compare ? USERS.slice(0, 8) : USERS.filter((u) => u.id === who))
     .map((u) => ({
       name: u.name,
       color: u.color,
@@ -48,9 +52,11 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
               <span style={{ width: 8, height: 8, borderRadius: 4, background: u.color }} /> {u.name}
             </button>
           ))}
-          <button className={`chip ${compare ? 'on' : ''}`} onClick={() => setCompare(!compare)}>
-            Sammenlign alle
-          </button>
+          {USERS.length > 1 && (
+            <button className={`chip ${compare ? 'on' : ''}`} onClick={() => setCompare(!compare)}>
+              Sammenlign{USERS.length > 8 ? ' topp 8' : ' alle'}
+            </button>
+          )}
         </div>
 
         {!compare && (
@@ -151,7 +157,7 @@ export function ExerciseDetailPage({ id, userId }: { id: string; userId?: string
           </section>
         )}
         {!compare && hist.length === 0 && (
-          <div className="empty small">{USERS.find((u) => u.id === who)!.name} har ikke logget {info.name.toLowerCase()} ennå.</div>
+          <div className="empty small">{USERS.find((u) => u.id === who)?.name ?? 'Personen'} har ikke logget {info.name.toLowerCase()} ennå.</div>
         )}
         <PercentTable max={rec.maxE1rm} show={!compare && rec.maxE1rm > 0} />
       </div>

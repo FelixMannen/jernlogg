@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { userById } from '../lib/domain'
+import { userById } from '../lib/users'
 
 /* ---------- icons ---------- */
 const P = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
@@ -130,15 +130,15 @@ window.addEventListener('hashchange', () => ((window as any).__navCount += 1))
 ;(window as any).__navCount = 0
 
 /* ---------- current user context ---------- */
-export const MeContext = createContext<{ me: string; setMe: (id: string | null) => void }>({ me: 'felix', setMe: () => {} })
+export const MeContext = createContext<{ me: string; email: string }>({ me: '', email: '' })
 export const useMe = () => useContext(MeContext)
 
 /* ---------- avatar ---------- */
 export function Avatar({ id, size }: { id: string; size?: 'sm' | 'lg' }) {
   const u = userById(id)
   return (
-    <span className={`plate-letter ${size ?? ''}`} style={{ ['--c' as any]: u.color }} aria-hidden>
-      {u.name[0]}
+    <span className={`plate-letter ${size ?? ''} ${u.emoji ? 'emoji' : ''}`} style={{ ['--c' as any]: u.color, ['--ink' as any]: u.ink }} aria-hidden>
+      {u.emoji || u.name[0]}
     </span>
   )
 }

@@ -1,6 +1,6 @@
 // Unit tests for reminder decisions: node scripts/test-reminders.mjs
 import { decideReminders, localParts } from '../api/_reminders.js'
-const USERS = { felix: 'Felix', david: 'David', erik: 'Erik' }
+const USERS = { felix: 'Felix', david: 'David', erik: 'Erik', u1: 'Ola' }
 let fail = 0
 const ok = (name, cond, extra = '') => {
   if (!cond) fail++
@@ -68,6 +68,18 @@ d = decideReminders(now, USERS, {
   logs: [],
 })
 ok('reminder counts a run as last workout and mentions split goal', d[0]?.payload.body === '2 dager siden sist. Du mangler 2 styrkeøkter og 1 løpetur på ukesmålet.', d[0]?.payload.body)
+// friend comparison only within groups, private workouts don't count for others
+{
+  const friendWk = (u, iso, extra = {}) => ({ id: u + iso, data: { userId: u, status: 'done', startedAt: iso, ...extra } })
+  const many = ['2026-10-05T08:00:00Z', '2026-10-06T08:00:00Z', '2026-10-06T10:00:00Z'].map((t) => friendWk('u1', t))
+  const args = { subs: [sub('felix')], profiles: [prof('felix', { tz, hour: 18, days: 1 })], workouts: [friendWk('felix', '2026-10-01T08:00:00Z'), ...many], logs: [] }
+  let x = decideReminders(now, USERS, { ...args, peers: { felix: new Set(['david', 'erik']) } })
+  ok('friend comparison ignores people outside my groups', !x[0]?.payload.body.includes('Ola'), x[0]?.payload.body)
+  x = decideReminders(now, USERS, { ...args, peers: { felix: new Set(['u1']) } })
+  ok('friend comparison uses group friends', x[0]?.payload.body.startsWith('Ola har 3 økter'), x[0]?.payload.body)
+  x = decideReminders(now, USERS, { ...args, workouts: [friendWk('felix', '2026-10-01T08:00:00Z'), ...many.map((w) => ({ ...w, data: { ...w.data, private: true } }))], peers: { felix: new Set(['u1']) } })
+  ok('private workouts are not counted for friends', !x[0]?.payload.body.includes('Ola'), x[0]?.payload.body)
+}
 // supplements
 const { decideSupplements, buildPayload } = await import('../api/_supplements.js')
 const kreatin = { id: 'sup1', data: { userId: 'felix', name: 'Kreatin', amount: 5, unit: 'g', doses: [{ hour: 8 }], createdAt: '2026-10-01', stock: { total: 50, refillAt: '2026-10-01' } } }

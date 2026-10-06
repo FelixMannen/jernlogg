@@ -176,10 +176,12 @@ await t('styrkeøkt: endre dato/varighet og slett via ⋯', async () => {
 })
 
 await t('import av løpetur via lenke', async () => {
+  await page.goto(base + '#/feed')
+  await page.evaluate(() => localStorage.setItem('jernlogg.me', 'david'))
   await page.goto('about:blank')
   await page.goto(base + '#/import?d=bruker:David;L%C3%B8p:Elverunden+27:59')
   await page.getByText('Importer løpetur').waitFor()
-  if (!(await page.locator('.chip.on', { hasText: 'David' }).count())) throw new Error('David not selected')
+  if (await page.getByText('Teksten gjelder').count()) throw new Error('should be saved on David without warning')
   if (!(await page.locator('.chip.on', { hasText: 'Elverunden' }).count())) throw new Error('route not matched')
   await shot('import-run')
   await page.getByRole('button', { name: 'Lagre løpetur' }).click()
@@ -189,6 +191,9 @@ await t('import av løpetur via lenke', async () => {
 })
 
 await t('styrke fortsatt ok: start og forkast', async () => {
+  await page.goto(base + '#/feed')
+  await page.evaluate(() => localStorage.setItem('jernlogg.me', 'felix'))
+  await page.goto('about:blank')
   await page.goto(base + '#/okt')
   await page.locator('.kind-tile', { hasText: 'Styrke' }).click()
   await page.getByRole('button', { name: /Legg til øvelse/ }).first().waitFor()

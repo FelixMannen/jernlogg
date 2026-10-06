@@ -1,6 +1,13 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+// Local-first document store.
+// - Instant start from the offline cache (IndexedDB), writes are queued in localStorage and synced in the background.
+// - Only the signed-in user's own data and data from people in their groups is loaded (enforced by the database).
+// - After the first full load only changes are fetched (synced_at cursor); a full reload runs at most every 12 hours
+//   and whenever group memberships change (so new friends' history shows up and old ones disappear).
 import { useSyncExternalStore } from 'react'
-import { SUPABASE_URL, SUPABASE_KEY } from '../config'
+import { supabase, isLocal } from './supabase'
+import { kvGet, kvSet } from './idb'
+import { writeByUpdate } from './access'
+import { localLoad, upsertDb, localRpc, ensureLocalSeed } from './localServer'
 
 export type Doc<T = any> = {
   id: string
@@ -9,66 +16,87 @@ export type Doc<T = any> = {
   created_at: string
   updated_at: string
   deleted: boolean
+  synced_at?: string
 }
+
+class NoSession extends Error {}
 
 interface Backend {
   name: 'supabase' | 'local'
-  loadAll(): Promise<Doc[]>
-  upsert(docs: Doc[]): Promise<void>
+  load(since?: string): Promise<Doc[]>
+  upsert(docs: Doc[], me: string | null): Promise<Doc[]> // returns docs the server refused
   subscribe(cb: (doc: Doc) => void): () => void
+  rpc(name: string, args?: Record<string, any>): Promise<any>
 }
 
-/* ---------- local backend (testing / offline demo) ---------- */
-const LOCAL_DB_KEY = 'jernlogg.localdb.v1'
+const clean = (d: Doc) => ({ id: d.id, collection: d.collection, data: d.data, created_at: d.created_at, updated_at: d.updated_at, deleted: d.deleted })
+const isRefused = (e: any) => e?.code === '42501' || /row-level security/i.test(e?.message ?? '')
+
+/* ---------- local backend (tests) ---------- */
 const localBackend: Backend = {
   name: 'local',
-  async loadAll() {
-    try {
-      return JSON.parse(localStorage.getItem(LOCAL_DB_KEY) || '[]')
-    } catch {
-      return []
-    }
+  async load(since) {
+    ensureLocalSeed()
+    return localLoad(since)
   },
   async upsert(docs) {
-    let all: Doc[] = []
-    try {
-      all = JSON.parse(localStorage.getItem(LOCAL_DB_KEY) || '[]')
-    } catch {}
-    const map = new Map(all.map((d) => [d.id, d]))
-    for (const d of docs) map.set(d.id, d)
-    localStorage.setItem(LOCAL_DB_KEY, JSON.stringify([...map.values()]))
+    upsertDb(docs.map(clean) as Doc[])
+    return []
   },
   subscribe() {
     return () => {}
   },
+  rpc: localRpc,
 }
 
 /* ---------- supabase backend ---------- */
-function supabaseBackend(client: SupabaseClient): Backend {
+function supabaseBackend(): Backend {
+  const client = supabase!
   return {
     name: 'supabase',
-    async loadAll() {
+    async load(since) {
       const out: Doc[] = []
       const page = 1000
       for (let from = 0; ; from += page) {
-        const { data, error } = await client
-          .from('docs')
-          .select('*')
-          .order('created_at', { ascending: true })
-          .range(from, from + page - 1)
+        let q = client.from('docs').select('*')
+        q = since ? q.gt('synced_at', since).order('synced_at', { ascending: true }) : q.eq('deleted', false).order('id', { ascending: true })
+        const { data, error } = await q.range(from, from + page - 1)
         if (error) throw error
         out.push(...(data as Doc[]))
         if (!data || data.length < page) break
       }
       return out
     },
-    async upsert(docs) {
-      const { error } = await client.from('docs').upsert(docs, { onConflict: 'id' })
-      if (error) throw error
+    async upsert(docs, me) {
+      const { data: s } = await client.auth.getSession()
+      if (!s.session || !me) throw new NoSession('ikke logget inn')
+      const refused: Doc[] = []
+      const viaUpdate = docs.filter((d) => writeByUpdate(d, me))
+      const normal = docs.filter((d) => !viaUpdate.includes(d))
+      if (normal.length) {
+        const { error } = await client.from('docs').upsert(normal.map(clean), { onConflict: 'id' })
+        if (error) {
+          if (!isRefused(error)) throw error
+          // find the offending doc(s); the rest still gets saved
+          for (const d of normal) {
+            const { error: e } = await client.from('docs').upsert([clean(d)], { onConflict: 'id' })
+            if (e) {
+              if (isRefused(e)) refused.push(d)
+              else throw e
+            }
+          }
+        }
+      }
+      for (const d of viaUpdate) {
+        const { data, error } = await client.from('docs').update({ data: d.data, deleted: d.deleted, updated_at: d.updated_at }).eq('id', d.id).select('id')
+        if (error && !isRefused(error)) throw error
+        if (error || !data?.length) refused.push(d)
+      }
+      return refused
     },
     subscribe(cb) {
       const ch = client
-        .channel('docs-changes')
+        .channel('docs-' + uid())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, (payload: any) => {
           if (payload.new && payload.new.id) cb(payload.new as Doc)
         })
@@ -77,60 +105,86 @@ function supabaseBackend(client: SupabaseClient): Backend {
         client.removeChannel(ch)
       }
     },
+    async rpc(name, args = {}) {
+      const { data, error } = await client.rpc(name, args)
+      if (error) throw new Error(error.message)
+      return data
+    },
   }
 }
 
-function pickBackend(): Backend {
-  const params = new URLSearchParams(location.search)
-  if (params.get('local') === '1') sessionStorage.setItem('jernlogg.local', '1')
-  if (params.get('local') === '0') sessionStorage.removeItem('jernlogg.local')
-  const forceLocal = sessionStorage.getItem('jernlogg.local') === '1'
-  if (!forceLocal && SUPABASE_URL && SUPABASE_KEY) {
-    return supabaseBackend(createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } }))
-  }
-  return localBackend
-}
+/* ---------- store state ---------- */
+const backend: Backend = isLocal ? localBackend : supabaseBackend()
+const FULL_EVERY_MS = 12 * 3600e3
 
-/* ---------- store ---------- */
-const backend = pickBackend()
-const CACHE_KEY = `jernlogg.cache.${backend.name}.v1`
-const QUEUE_KEY = `jernlogg.queue.${backend.name}.v1`
-
+let user: string | null = null
 const docs = new Map<string, Doc>()
+const byCollection = new Map<string, Map<string, Doc>>()
 let version = 0
 let status: 'loading' | 'ready' | 'offline' = 'loading'
 let pending: Doc[] = []
+let cursor = '' // highest synced_at seen from the server
+let lastFull = 0
+let unsubscribe: (() => void) | null = null
 const listeners = new Set<() => void>()
+
+const queueKey = (u: string | null) => `jernlogg.queue.${backend.name}.${u ?? 'anon'}.v2`
+const cacheKey = (u: string) => `cache:${backend.name}:${u}:v2`
+
+function setDoc(d: Doc) {
+  const prev = docs.get(d.id)
+  if (prev && prev.collection !== d.collection) byCollection.get(prev.collection)?.delete(d.id)
+  docs.set(d.id, d)
+  let m = byCollection.get(d.collection)
+  if (!m) byCollection.set(d.collection, (m = new Map()))
+  m.set(d.id, d)
+  if (d.synced_at && d.synced_at > cursor) cursor = d.synced_at
+}
+function clearDocs() {
+  docs.clear()
+  byCollection.clear()
+}
 
 function emit() {
   version++
   listeners.forEach((l) => l())
 }
 
-function saveCache() {
+function saveQueue() {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify([...docs.values()]))
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(pending))
+    localStorage.setItem(queueKey(user), JSON.stringify(pending))
   } catch {}
 }
-
 let cacheTimer: any
-function scheduleCache() {
+function saveCacheNow() {
   clearTimeout(cacheTimer)
-  cacheTimer = setTimeout(saveCache, 300)
+  saveQueue()
+  if (!user) return
+  kvSet(cacheKey(user), { docs: [...docs.values()], cursor, lastFull, v: 2 })
+}
+function scheduleCache() {
+  saveQueue()
+  clearTimeout(cacheTimer)
+  cacheTimer = setTimeout(saveCacheNow, 800)
 }
 
+let resyncTimer: any
 function applyRemote(d: Doc) {
   const cur = docs.get(d.id)
-  // ignore remote echoes older than what we have locally
-  if (cur && cur.updated_at > d.updated_at) return
-  // ignore if we have a pending local write for this doc
-  if (pending.some((p) => p.id === d.id)) return
-  docs.set(d.id, d)
+  if (d.synced_at && d.synced_at > cursor) cursor = d.synced_at
+  if (cur && cur.updated_at > d.updated_at) return // older echo
+  if (pending.some((p) => p.id === d.id)) return // we have an unsynced local change
+  if (d.collection === 'group_members' && (!cur || cur.deleted !== d.deleted)) {
+    // someone joined/left one of my groups: reload so their history appears/disappears
+    clearTimeout(resyncTimer)
+    resyncTimer = setTimeout(() => resync(), 600)
+  }
+  setDoc(d)
   scheduleCache()
   emit()
 }
 
+/* ---------- sync ---------- */
 let flushing = false
 let flushTimer: any
 async function flush() {
@@ -138,17 +192,18 @@ async function flush() {
   flushing = true
   const batch = dedupe(pending)
   try {
-    await backend.upsert(batch)
+    const refused = await backend.upsert(batch, user)
+    if (refused.length) quarantine(refused)
     pending = pending.filter((p) => !batch.some((b) => b.id === p.id && b.updated_at === p.updated_at))
     if (status === 'offline') status = 'ready'
-    saveCache()
+    saveQueue()
     emit()
   } catch (e) {
-    console.warn('[jernlogg] sync failed, retrying', e)
+    if (!(e instanceof NoSession)) console.warn('[jernlogg] sync failed, retrying', e)
     status = 'offline'
     emit()
     clearTimeout(flushTimer)
-    flushTimer = setTimeout(flush, 4000)
+    flushTimer = setTimeout(flush, e instanceof NoSession ? 15000 : 4000)
   } finally {
     flushing = false
     if (pending.length && status !== 'offline') {
@@ -156,6 +211,15 @@ async function flush() {
       flushTimer = setTimeout(flush, 50)
     }
   }
+}
+
+/** Writes the server refused (not allowed for this user) – kept aside so the queue never gets stuck, never thrown away silently. */
+function quarantine(list: Doc[]) {
+  console.warn('[jernlogg] server refused', list.map((d) => d.id))
+  try {
+    const cur = JSON.parse(localStorage.getItem('jernlogg.refused') || '[]')
+    localStorage.setItem('jernlogg.refused', JSON.stringify([...cur, ...list.map((d) => ({ ...d, refusedAt: nowIso(), user }))].slice(-200)))
+  } catch {}
 }
 
 function dedupe(list: Doc[]): Doc[] {
@@ -167,6 +231,143 @@ function dedupe(list: Doc[]): Doc[] {
 function scheduleFlush() {
   clearTimeout(flushTimer)
   flushTimer = setTimeout(flush, 250)
+}
+
+async function pull(full: boolean) {
+  const since = full || !cursor ? undefined : new Date(Date.parse(cursor) - 2000).toISOString()
+  const remote = await backend.load(since)
+  if (!since) {
+    // full reload: replace everything (drops docs we are no longer allowed to see), keep unsynced local changes
+    const keep = new Map(pending.map((p) => [p.id, p]))
+    clearDocs()
+    for (const d of remote) if (!keep.has(d.id)) setDoc(d)
+    for (const p of keep.values()) setDoc(p)
+    lastFull = Date.now()
+  } else {
+    for (const d of remote) {
+      if (pending.some((p) => p.id === d.id)) continue
+      const cur = docs.get(d.id)
+      if (d.collection === 'group_members' && (!cur || cur.deleted !== d.deleted)) full = true
+      if (!cur || cur.updated_at <= d.updated_at || (d.synced_at ?? '') > (cur.synced_at ?? '')) setDoc(d)
+      else if (d.synced_at && d.synced_at > cursor) cursor = d.synced_at
+    }
+    if (full) return pull(true)
+  }
+}
+
+export async function resync() {
+  if (!user) return
+  try {
+    await pull(true)
+    status = 'ready'
+    saveCacheNow()
+    emit()
+  } catch (e) {
+    console.warn('[jernlogg] reload failed', e)
+  }
+}
+
+let globalHandlers = false
+function installGlobalHandlers() {
+  if (globalHandlers) return
+  globalHandlers = true
+  window.addEventListener('online', () => flush())
+  // never lose a just-made change if the tab is closed or backgrounded right away
+  window.addEventListener('pagehide', () => {
+    saveCacheNow()
+    flush()
+  })
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      saveCacheNow()
+      flush()
+    }
+    if (document.visibilityState === 'visible' && user) {
+      flush()
+      // catch up in case realtime dropped while backgrounded
+      pull(Date.now() - lastFull > FULL_EVERY_MS)
+        .then(() => (scheduleCache(), emit()))
+        .catch(() => {})
+    }
+  })
+}
+
+/** Start the store for a signed-in user. Safe to call again for another user (switches completely). */
+export async function init(userId: string) {
+  if (user === userId) return // already running (or starting) for this user
+  reset()
+  user = userId
+  status = 'loading'
+  emit()
+  installGlobalHandlers()
+  // 1. queued writes (incl. those made before login existed, or before this user was known)
+  try {
+    const own: Doc[] = JSON.parse(localStorage.getItem(queueKey(userId)) || '[]')
+    const anon: Doc[] = JSON.parse(localStorage.getItem(queueKey(null)) || '[]')
+    const legacyKey = `jernlogg.queue.${backend.name}.v1`
+    const legacy: Doc[] = JSON.parse(localStorage.getItem(legacyKey) || '[]')
+    pending = dedupe([...legacy, ...anon, ...own, ...pending])
+    saveQueue()
+    localStorage.removeItem(legacyKey)
+    localStorage.removeItem(queueKey(null))
+    localStorage.removeItem(`jernlogg.cache.${backend.name}.v1`) // old cache format (everyone's data)
+  } catch {}
+  // 2. instant start from cache
+  const cached = await kvGet<{ docs: Doc[]; cursor: string; lastFull: number }>(cacheKey(userId))
+  if (user !== userId) return
+  if (cached?.docs?.length) {
+    for (const d of cached.docs) if (!docs.has(d.id)) setDoc(d)
+    cursor = cached.cursor || cursor
+    lastFull = cached.lastFull || 0
+  }
+  for (const p of pending) setDoc(p)
+  if (docs.size) {
+    status = 'ready'
+    emit()
+  }
+  // 3. fresh data
+  try {
+    await pull(!cached || Date.now() - lastFull > FULL_EVERY_MS)
+    if (user !== userId) return
+    status = 'ready'
+    saveCacheNow()
+    emit()
+  } catch (e) {
+    console.warn('[jernlogg] load failed', e)
+    status = 'offline'
+    emit()
+  }
+  if (user !== userId) return
+  unsubscribe?.()
+  unsubscribe = backend.subscribe(applyRemote)
+  flush()
+}
+
+/** Forget the current user (sign out). Unsynced writes stay queued for that user. */
+export function reset() {
+  if (user || pending.length) saveCacheNow() // never overwrite a queue with an empty one
+  unsubscribe?.()
+  unsubscribe = null
+  clearTimeout(flushTimer)
+  clearTimeout(resyncTimer)
+  user = null
+  clearDocs()
+  pending = []
+  cursor = ''
+  lastFull = 0
+  status = 'loading'
+  emit()
+}
+
+/** Call a server function (groups, accounts…). Group changes trigger a full reload. */
+export async function rpc<T = any>(name: string, args: Record<string, any> = {}): Promise<T> {
+  const r = await backend.rpc(name, args)
+  if (/group|kick|claim|register/.test(name) && !/preview|public_groups|board/.test(name)) await resync()
+  return r as T
+}
+
+export function currentUser() {
+  return user
 }
 
 export function uid(prefix = ''): string {
@@ -189,7 +390,7 @@ export function put<T>(collection: string, id: string, data: T, opts: { deleted?
     updated_at: ts > (cur?.updated_at ?? '') ? ts : new Date(Date.parse(cur!.updated_at) + 1).toISOString(),
     deleted: opts.deleted ?? false,
   }
-  docs.set(id, d)
+  setDoc(d)
   pending.push(d)
   scheduleCache()
   scheduleFlush()
@@ -216,7 +417,8 @@ export function getDoc<T = any>(id: string): Doc<T> | undefined {
 
 export function list<T = any>(collection: string): Doc<T>[] {
   const out: Doc<T>[] = []
-  for (const d of docs.values()) if (d.collection === collection && !d.deleted) out.push(d as Doc<T>)
+  const m = byCollection.get(collection)
+  if (m) for (const d of m.values()) if (!d.deleted) out.push(d as Doc<T>)
   return out
 }
 
@@ -229,61 +431,7 @@ export function getVersion() {
 }
 
 export function getStatus() {
-  return { status, backend: backend.name, pending: pending.length }
-}
-
-export async function init() {
-  // 1. instant start from cache
-  try {
-    const cached: Doc[] = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]')
-    cached.forEach((d) => docs.set(d.id, d))
-    pending = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]')
-    pending.forEach((d) => docs.set(d.id, d))
-  } catch {}
-  if (docs.size) {
-    status = 'ready'
-    emit()
-  }
-  // 2. load fresh
-  try {
-    const remote = await backend.loadAll()
-    for (const d of remote) {
-      const cur = docs.get(d.id)
-      if (pending.some((p) => p.id === d.id)) continue
-      if (!cur || cur.updated_at <= d.updated_at) docs.set(d.id, d)
-    }
-    status = 'ready'
-    saveCache()
-    emit()
-  } catch (e) {
-    console.warn('[jernlogg] load failed', e)
-    status = docs.size ? 'offline' : 'offline'
-    emit()
-  }
-  backend.subscribe(applyRemote)
-  flush()
-  window.addEventListener('online', () => flush())
-  // never lose a just-made change if the tab is closed or backgrounded right away
-  window.addEventListener('pagehide', () => {
-    clearTimeout(cacheTimer)
-    saveCache()
-    flush()
-  })
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      clearTimeout(cacheTimer)
-      saveCache()
-      flush()
-    }
-    if (document.visibilityState === 'visible') {
-      flush()
-      // refresh in case realtime dropped while backgrounded
-      backend
-        .loadAll()
-        .then((remote) => remote.forEach(applyRemote))
-        .catch(() => {})
-    }
-  })
+  return { status, backend: backend.name, pending: pending.length, user }
 }
 
 export function useStoreVersion() {
@@ -296,5 +444,7 @@ export function useStoreVersion() {
   )
 }
 
+installGlobalHandlers()
+
 // test helper
-;(window as any).__jernlogg = { allDocs, put, getStatus }
+;(window as any).__jernlogg = { allDocs, put, getStatus, rpc, resync }

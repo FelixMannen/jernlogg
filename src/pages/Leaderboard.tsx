@@ -3,14 +3,16 @@ import { TopBar, Avatar, go, useMe } from '../components/ui'
 import { ExercisePicker } from '../components/ExercisePicker'
 import { RunBoards } from './RunBoards'
 import { useStoreVersion } from '../lib/store'
-import { USERS, type UserId } from '../lib/domain'
+import { type UserId } from '../lib/domain'
+import { userById, myGroups, type UserInfo } from '../lib/users'
+import { useScope, scopeUsers } from '../lib/scope'
 import {
+  sharedOnly,
   bestE1rm,
   bestScore,
   exerciseById,
   fmtKg,
   fmtVolume,
-  latestBodyweight,
   usedExerciseIds,
   workoutsInRange,
   startOfWeek,
@@ -21,14 +23,19 @@ import {
 
 type Row = { id: UserId; value: number; sub?: string }
 
+const BOARD_ROWS = 10
 function Board({ rows, fmt, empty }: { rows: Row[]; fmt: (v: number) => string; empty?: string }) {
+  const { me } = useMe()
+  const [all, setAll] = useState(false)
   const sorted = [...rows].sort((a, b) => b.value - a.value)
   const max = Math.max(1, ...sorted.map((r) => r.value))
   if (sorted.every((r) => r.value === 0)) return <div className="small muted" style={{ padding: '8px 0' }}>{empty ?? 'Ingen data ennå'}</div>
+  // long lists: top 10, plus me if I'm further down
+  const shown = all || sorted.length <= BOARD_ROWS + 1 ? sorted.map((r, i) => ({ r, i })) : sorted.map((r, i) => ({ r, i })).filter(({ r, i }) => i < BOARD_ROWS || r.id === me)
   return (
     <div>
-      {sorted.map((r, i) => {
-        const u = USERS.find((x) => x.id === r.id)!
+      {shown.map(({ r, i }) => {
+        const u = userById(r.id)
         return (
           <div key={r.id} className="lb-row">
             <span className={`lb-rank ${i === 0 && r.value > 0 ? 'first' : ''}`}>{r.value > 0 ? i + 1 : '–'}</span>
@@ -45,25 +52,29 @@ function Board({ rows, fmt, empty }: { rows: Row[]; fmt: (v: number) => string; 
           </div>
         )
       })}
+      {sorted.length > BOARD_ROWS + 1 && (
+        <button className="btn ghost small" onClick={() => setAll((a) => !a)}>
+          {all ? 'Vis topp 10' : `Vis alle ${sorted.length}`}
+        </button>
+      )}
     </div>
   )
 }
 
 const BIG3 = ['benkpress', 'kneboy', 'markloft']
 
-function StrengthBoards() {
+function StrengthBoards({ people }: { people: UserInfo[] }) {
   useStoreVersion()
   const { me } = useMe()
-  const used = usedExerciseIds()
+  const USERS = people
+  const used = sharedOnly(() => usedExerciseIds())
   const candidates = [...new Set([...BIG3, ...used])]
   const [ex, setEx] = useState<string>(used[0] ?? 'benkpress')
-  const [relative, setRelative] = useState(false)
   const [picking, setPicking] = useState(false)
-
+  return sharedOnly(() => {
   const exRows: Row[] = USERS.map((u) => {
     const b = bestScore(u.id, ex)
-    const bw = latestBodyweight(u.id)
-    const val = relative && b.unit === 'kg' ? (bw && b.value ? b.value / bw : 0) : b.value
+    const val = b.value
     return {
       id: u.id,
       value: val,
@@ -84,7 +95,6 @@ function StrengthBoards() {
   })
   const monthRows: Row[] = USERS.map((u) => ({ id: u.id, value: workoutsInRange(u.id, monthStart).length }))
   const streakRows: Row[] = USERS.map((u) => ({ id: u.id, value: streakWeeks(u.id) }))
-  const anyBw = USERS.some((u) => latestBodyweight(u.id))
 
   return (
     <>
@@ -92,16 +102,6 @@ function StrengthBoards() {
         <section className="card">
           <div className="spread" style={{ marginBottom: 8 }}>
             <h2>{exerciseById(ex).bodyweight ? 'Flest reps' : 'Beste 1RM'}</h2>
-            {anyBw && (
-              <div className="row">
-                <button className={`chip ${!relative ? 'on' : ''}`} onClick={() => setRelative(false)}>
-                  kg
-                </button>
-                <button className={`chip ${relative ? 'on' : ''}`} onClick={() => setRelative(true)}>
-                  × kroppsvekt
-                </button>
-              </div>
-            )}
           </div>
           <div className="chips" style={{ marginBottom: 4 }}>
             {candidates.slice(0, 10).map((id) => (
@@ -113,13 +113,13 @@ function StrengthBoards() {
               Annen…
             </button>
           </div>
-          <Board rows={exRows} fmt={(v) => (exerciseById(ex).bodyweight ? `${v}` : relative ? `${v.toFixed(2).replace('.', ',')}×` : `${fmtKg(v, 0)}`)} empty={`Ingen har logget ${exerciseById(ex).name.toLowerCase()} ennå.`} />
+          <Board rows={exRows} fmt={(v) => (exerciseById(ex).bodyweight ? `${v}` : `${fmtKg(v, 0)}`)} empty={`Ingen har logget ${exerciseById(ex).name.toLowerCase()} ennå.`} />
           <button className="btn small ghost" style={{ marginTop: 4 }} onClick={() => go(`ex/${ex}`)}>
             Se utvikling for {exerciseById(ex).name.toLowerCase()}
           </button>
         </section>
 
-        <HeadToHead />
+        {USERS.length >= 2 && USERS.length <= 6 && <HeadToHead people={USERS} />}
 
         <section className="card" style={{ marginTop: 12 }}>
           <h2>Big 3-total</h2>
@@ -161,13 +161,18 @@ function StrengthBoards() {
       )}
     </>
   )
+  })
 }
 
-function HeadToHead() {
+function HeadToHead({ people }: { people: UserInfo[] }) {
+  return sharedOnly(() => HeadToHeadInner({ people })) // plain call so the numbers are computed without private workouts
+}
+function HeadToHeadInner({ people }: { people: UserInfo[] }) {
+  const USERS = people
   // exercises at least two people have logged
   const ids = usedExerciseIds().filter((id) => USERS.filter((u) => bestScore(u.id, id).value > 0).length >= 2)
   if (!ids.length) return null
-  const wins: Record<string, number> = { felix: 0, david: 0, erik: 0 }
+  const wins: Record<string, number> = Object.fromEntries(USERS.map((u) => [u.id, 0]))
   const rows = ids.map((id) => {
     const vals = USERS.map((u) => bestScore(u.id, id).value)
     const max = Math.max(...vals)
@@ -179,7 +184,7 @@ function HeadToHead() {
       <div className="spread" style={{ marginBottom: 8 }}>
         <h2>Hvem er sterkest på hva</h2>
       </div>
-      <div className="h2h">
+      <div className="h2h" style={{ gridTemplateColumns: `1fr repeat(${USERS.length}, 52px)` }}>
         <span />
         {USERS.map((u) => (
           <span key={u.id} className="h2h-head">
@@ -206,6 +211,10 @@ function HeadToHead() {
 
 export function LeaderboardPage() {
   useStoreVersion()
+  const { me } = useMe()
+  const [scope, setScope] = useScope(me)
+  const people = scopeUsers(me, scope)
+  const groups = myGroups(me)
   const [mode, setMode] = useState<'styrke' | 'lop'>(() => {
     try {
       return (localStorage.getItem('jernlogg.toppMode') as 'styrke' | 'lop') || 'styrke'
@@ -221,8 +230,35 @@ export function LeaderboardPage() {
   }
   return (
     <>
-      <TopBar title="Topplister" />
+      <TopBar
+        title="Topplister"
+        right={
+          <a className="btn small ghost" href="#/grupper/topp">
+            🌍 Grupper
+          </a>
+        }
+      />
       <div className="page" style={{ paddingBottom: 0 }}>
+        {groups.length > 1 && (
+          <div className="chips" style={{ marginBottom: 10 }} role="group" aria-label="Vis gruppe">
+            <button className={`chip ${scope === 'alle' ? 'on' : ''}`} onClick={() => setScope('alle')}>
+              Alle grupper
+            </button>
+            {groups.map((g) => (
+              <button key={g.id} className={`chip ${scope === g.id ? 'on' : ''}`} onClick={() => setScope(g.id)}>
+                {g.data.emoji ? `${g.data.emoji} ` : ''}
+                {g.data.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {people.length <= 1 && (
+          <div className="card nudge" style={{ marginBottom: 10 }}>
+            <p className="small" style={{ margin: 0 }}>
+              Topplistene blir morsomme med flere. <a href="#/grupper">Lag eller bli med i en gruppe</a> for å konkurrere.
+            </p>
+          </div>
+        )}
         <div className="seg" role="tablist">
           <button role="tab" aria-selected={mode === 'styrke'} className={mode === 'styrke' ? 'on' : ''} onClick={() => pick('styrke')}>
             🏋️ Styrke
@@ -232,7 +268,7 @@ export function LeaderboardPage() {
           </button>
         </div>
       </div>
-      {mode === 'styrke' ? <StrengthBoards /> : <RunBoards Board={Board} />}
+      {mode === 'styrke' ? <StrengthBoards key={scope} people={people} /> : <RunBoards key={scope} Board={Board} people={people} />}
     </>
   )
 }

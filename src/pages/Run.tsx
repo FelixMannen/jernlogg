@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMe, TopBar, Icon, go, back, toast, confirmDialog, Sheet, useNow, useWakeLock, Avatar, vibrate, confetti } from '../components/ui'
 import { WorkoutMenuButton, toLocalInput } from '../components/WorkoutActions'
 import { useStoreVersion, getDoc } from '../lib/store'
-import { USERS, userById, REACTIONS, FEELINGS, FEELING_LABEL, RUN_TYPES, type Workout, type UserId, type RunData, type RunType, type Route } from '../lib/domain'
-import { fmtRelDate, activeWorkout, fmtDate } from '../lib/stats'
+import { REACTIONS, FEELINGS, FEELING_LABEL, RUN_TYPES, type Workout, type UserId, type RunData, type RunType, type Route } from '../lib/domain'
+import { userById } from '../lib/users'
+import { fmtRelDate, activeWorkout, fmtDate, sharedOnly } from '../lib/stats'
 import {
   saveRun,
   startStopwatch,
@@ -90,7 +91,7 @@ export function RunStartPage() {
           ) : (
             <div className="list">
               {list.map((r) => {
-                const board = routeBoard(r.id)
+                const board = sharedOnly(() => routeBoard(r.id))
                 const myBest = board.find((b) => b.userId === me)
                 return (
                   <div key={r.id} className="list-item">
@@ -105,9 +106,11 @@ export function RunStartPage() {
                     <button className="btn small primary" onClick={() => go(`lop/ny?rute=${r.id}`)}>
                       Logg
                     </button>
-                    <button className="icon-btn" aria-label={`Rediger ${r.data.name}`} onClick={() => setRouteSheet({ id: r.id })}>
-                      <Icon.edit />
-                    </button>
+                    {r.data.createdBy === me && (
+                      <button className="icon-btn" aria-label={`Rediger ${r.data.name}`} onClick={() => setRouteSheet({ id: r.id })}>
+                        <Icon.edit />
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -218,6 +221,7 @@ export type RunFormValues = {
   runType?: RunType
   feeling?: number
   notes: string
+  private?: boolean
   elevation: string
   avgHr: string
   title: string
@@ -254,6 +258,7 @@ export function valuesFromRun(w: Workout): RunFormValues {
     runType: r.runType,
     feeling: w.feeling,
     notes: w.notes ?? '',
+    private: !!w.private,
     elevation: r.elevationM ? String(r.elevationM) : '',
     avgHr: r.avgHr ? String(r.avgHr) : '',
     title: w.title,
@@ -289,17 +294,15 @@ export function runInputFrom(v: RunFormValues) {
   let start = new Date(v.date)
   // logged right after the run without touching the date → it started «duration» ago
   if (!v.dateTouched && run.durationSec) start = new Date(Date.now() - run.durationSec * 1000)
-  return { userId: v.userId, startedAt: start.toISOString(), title: v.title.trim() || autoTitle(v), run, notes: v.notes.trim() || undefined, feeling: v.feeling }
+  return { userId: v.userId, startedAt: start.toISOString(), title: v.title.trim() || autoTitle(v), run, notes: v.notes.trim() || undefined, feeling: v.feeling, private: !!v.private }
 }
 
 export function RunForm({
   values,
   onChange,
-  showUser,
 }: {
   values: RunFormValues
   onChange: (v: RunFormValues) => void
-  showUser?: boolean
 }) {
   useStoreVersion()
   const v = values
@@ -317,18 +320,6 @@ export function RunForm({
 
   return (
     <div className="stack">
-      {showUser && (
-        <div className="field">
-          <span>Hvem</span>
-          <div className="chips" style={{ margin: 0, padding: 0 }}>
-            {USERS.map((u) => (
-              <button key={u.id} className={`chip ${v.userId === u.id ? 'on' : ''}`} onClick={() => set({ userId: u.id })}>
-                <span style={{ width: 8, height: 8, borderRadius: 4, background: u.color }} /> {u.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="field">
         <span>Rute (valgfritt)</span>
@@ -450,9 +441,18 @@ export function RunForm({
         <span>Notat</span>
         <input className="input" value={v.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="f.eks. motvind, nye sko" />
       </label>
+      <label className="switch-row">
+        <input type="checkbox" checked={!!v.private} onChange={(e) => set({ private: e.target.checked })} />
+        <span>
+          🔒 Privat tur
+          <span className="tiny muted" style={{ display: 'block' }}>
+            Bare du ser den. Teller i din statistikk, ikke i grupper og topplister.
+          </span>
+        </span>
+      </label>
 
       {!more ? (
-        <button className="btn ghost small" style={{ alignSelf: 'flex-start' }} onClick={() => setMore(true)}>
+        <button className="btn ghost smallall" style={{ alignSelf: 'flex-start' }} onClick={() => setMore(true)}>
           + Mer (høydemeter, puls, tittel)
         </button>
       ) : (
@@ -537,7 +537,7 @@ export function RunFormPage({ editId }: { editId?: string }) {
       go(`w/${id}`)
       return
     }
-    notifyFinished(id)
+    if (!input.private) notifyFinished(id)
     const prs = prsForRun(id, getDoc<Workout>(id)!.data)
     if (prs.length) confetti(['#f2c14e', '#eceae4', userById(me).color])
     go(`w/${id}/ferdig`)
@@ -655,7 +655,7 @@ export function RunDetail({ id, summary }: { id: string; summary?: boolean }) {
   const prs = prsForRun(id, w)
   const pace = paceOf(r)
   const type = RUN_TYPES.find((t) => t.id === r.runType)
-  const board = r.routeId ? routeBoard(r.routeId) : []
+  const board = r.routeId ? sharedOnly(() => routeBoard(r.routeId!)) : []
   return (
     <>
       <TopBar title={summary ? 'Bra løpt! 🏃' : w.title} onBack={() => (summary ? go('feed') : back())} right={mine ? <WorkoutMenuButton id={id} /> : undefined} />
@@ -770,7 +770,7 @@ export function RunDetail({ id, summary }: { id: string; summary?: boolean }) {
           </section>
         )}
 
-        <Social id={id} />
+        {!w.private && <Social id={id} />}
 
         {summary && (
           <button className="btn primary block big" onClick={() => go('feed')}>

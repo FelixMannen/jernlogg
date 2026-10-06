@@ -1,5 +1,5 @@
 import { put, patch, remove, uid, getDoc, nowIso, list } from './store'
-import type { RunData, Route, Feedback, FeedbackComplaint, Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
+import type { RunData, Route, Feedback, FeedbackComplaint, FeedbackReview, Workout, WorkoutExercise, SetEntry, Template, Exercise, UserId, Reaction, Profile, BodyweightEntry, Comment } from './domain'
 import { lastSession, activeWorkout, profile } from './stats'
 
 export function newSet(prev?: Partial<SetEntry>): SetEntry {
@@ -214,13 +214,58 @@ export function complaintsFor(feedbackId: string) {
     .sort((a, b) => a.data.at.localeCompare(b.data.at))
 }
 
-/** «Tilbakemelding utført dårlig»: log the complaint and reopen the feedback so it gets redone. */
+/** «Tilbakemelding utført dårlig»: log the complaint. The feedback counts as reopened (see feedbackStatus)
+ *  because the complaint is newer than the fix – nobody but Felix may edit someone else's feedback. */
 export function complainFeedback(feedbackId: string, userId: UserId, text: string) {
   put('feedback_complaints', uid('k'), { feedbackId, userId, text, at: nowIso() } as FeedbackComplaint)
+  // owner complaining about their own feedback: also reopen it directly (keeps old clients/scripts consistent)
+  const f = getDoc<Feedback>(feedbackId)
+  if (f && f.data.userId === userId) reopenFeedbackDoc(feedbackId)
+}
+
+function reopenFeedbackDoc(feedbackId: string) {
   patch<Feedback>(feedbackId, (f) => {
     const attempts = [...(f.attempts ?? [])]
     if (f.reply) attempts.push({ reply: f.reply, doneAt: f.doneAt ?? nowIso() })
     return { ...f, status: 'open', attempts, reply: undefined, doneAt: undefined }
+  })
+}
+
+/** Complaints that count: from the original three, or approved by Felix. */
+export function countedComplaints(feedbackId: string) {
+  return complaintsFor(feedbackId).filter((c) => TRUSTED_FEEDBACK.includes(c.data.userId) || (feedbackReview(c.id)?.approved && feedbackReview(c.id)?.text === c.data.text))
+}
+
+/** Effective status: a fix with a newer (counted) complaint is open again. */
+export function feedbackStatus(id: string, f: Feedback): 'open' | 'done' {
+  if (f.status !== 'done') return 'open'
+  const last = countedComplaints(id).at(-1)
+  return last && f.doneAt && last.data.at > f.doneAt ? 'open' : 'done'
+}
+
+/** Trusted senders (the original three) need no approval before Claude acts on their feedback. */
+export const TRUSTED_FEEDBACK = ['felix', 'david', 'erik']
+export function feedbackReview(id: string) {
+  return getDoc<FeedbackReview>(`review:${id}`)?.data
+}
+export function feedbackApproval(id: string, f: Feedback): 'trusted' | 'approved' | 'rejected' | 'waiting' | 'changed' {
+  if (TRUSTED_FEEDBACK.includes(f.userId)) return 'trusted'
+  const r = feedbackReview(id)
+  if (!r) return 'waiting'
+  if (!r.approved) return 'rejected'
+  return r.text === f.text ? 'approved' : 'changed'
+}
+/** Felix approves/rejects a feedback item or a complaint (the approved text is stored, later edits need a new approval). */
+export function reviewFeedback(id: string, f: { text: string }, approved: boolean) {
+  put('feedback_review', `review:${id}`, { feedbackId: id, approved, text: f.text, at: nowIso() } as FeedbackReview)
+}
+
+/** Felix/Claude: mark as fixed (keeps earlier attempts when it was reopened by a complaint). */
+export function markFeedbackDone(id: string, reply: string) {
+  patch<Feedback>(id, (f) => {
+    const attempts = [...(f.attempts ?? [])]
+    if (f.reply && f.doneAt) attempts.push({ reply: f.reply, doneAt: f.doneAt })
+    return { ...f, status: 'done', reply, doneAt: nowIso(), attempts }
   })
 }
 
@@ -232,6 +277,7 @@ export type RunInput = {
   run: RunData
   notes?: string
   feeling?: number
+  private?: boolean
 }
 
 /** Create or overwrite a finished run. */
@@ -253,7 +299,9 @@ export function saveRun(input: RunInput, id = uid('w')): string {
     run,
     notes: input.notes || undefined,
     feeling: input.feeling || undefined,
+    private: input.private || undefined,
   }
+  if (!w.private) delete w.private
   delete (w as any).reopenedFrom
   put('workouts', id, w)
   return id
@@ -302,6 +350,14 @@ export function deleteRoute(id: string) {
   remove(id)
 }
 
+/** Private workouts are only visible to the owner and never count in groups or leaderboards. */
+export function setWorkoutPrivate(id: string, value: boolean) {
+  updateWorkout(id, (w) => {
+    if (value) w.private = true
+    else delete w.private
+  })
+}
+
 /** Change date/time, duration, title and note of a finished strength workout. */
 export function updateWorkoutMeta(id: string, meta: { startedAt: string; minutes: number | null; title: string; notes?: string }) {
   updateWorkout(id, (w) => {
@@ -317,3 +373,23 @@ export function updateWorkoutMeta(id: string, meta: { startedAt: string; minutes
     for (const ex of w.exercises) for (const s of ex.sets) if (s.doneAt) s.doneAt = new Date(Date.parse(s.doneAt) + delta).toISOString()
   })
 }
+
+/** For Claude (run in the browser console on jernlogg.vercel.app while signed in as Felix):
+ *  __jernlogg.feedbackTodo() → items to work on; __jernlogg.feedbackDone(id, 'kort beskrivelse') → marks as fixed. */
+export function feedbackTodo() {
+  return feedbackList()
+    .filter((f) => feedbackStatus(f.id, f.data) === 'open')
+    .map((f) => {
+      const approval = feedbackApproval(f.id, f.data)
+      return {
+        id: f.id,
+        userId: f.data.userId,
+        approval, // only 'trusted' and 'approved' may be acted on
+        text: approval === 'approved' ? feedbackReview(f.id)!.text : f.data.text,
+        complaints: countedComplaints(f.id).map((c) => ({ id: c.id, userId: c.data.userId, at: c.data.at, text: c.data.text })),
+        attempts: [...(f.data.attempts ?? []), ...(f.data.reply ? [{ reply: f.data.reply, doneAt: f.data.doneAt }] : [])],
+      }
+    })
+    .filter((f) => f.approval === 'trusted' || f.approval === 'approved')
+}
+Object.assign((window as any).__jernlogg ?? ((window as any).__jernlogg = {}), { feedbackTodo, feedbackDone: markFeedbackDone })

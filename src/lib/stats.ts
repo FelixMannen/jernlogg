@@ -13,7 +13,19 @@ import {
 /* ---------- memo (invalidated whenever the store changes) ---------- */
 let memoVersion = -1
 const memoMap = new Map<string, any>()
-function memo<T>(key: string, fn: () => T): T {
+/** While true, private workouts are left out (leaderboards, group stats). Personal stats include them. */
+let sharedMode = false
+export function sharedOnly<T>(fn: () => T): T {
+  const prev = sharedMode
+  sharedMode = true
+  try {
+    return fn()
+  } finally {
+    sharedMode = prev
+  }
+}
+function memo<T>(rawKey: string, fn: () => T): T {
+  const key = (sharedMode ? 'S|' : '') + rawKey
   const v = getVersion()
   if (v !== memoVersion) {
     memoMap.clear()
@@ -125,7 +137,11 @@ export function exerciseById(id: string): Exercise {
 }
 
 export function workouts(): Doc<Workout>[] {
-  return memo('workouts', () => list<Workout>('workouts').sort((a, b) => b.data.startedAt.localeCompare(a.data.startedAt)))
+  return memo('workouts', () =>
+    list<Workout>('workouts')
+      .filter((w) => !(sharedMode && w.data.private))
+      .sort((a, b) => b.data.startedAt.localeCompare(a.data.startedAt)),
+  )
 }
 
 export function doneWorkouts(userId?: string): Doc<Workout>[] {
@@ -355,10 +371,6 @@ export function workoutsInRange(userId: string, from: Date, to = new Date()) {
     const t = Date.parse(w.data.startedAt)
     return t >= from.getTime() && t <= to.getTime()
   })
-}
-
-export function userIdsOrdered(): UserId[] {
-  return ['felix', 'david', 'erik']
 }
 
 /** Progression hint: if every work set last time hit the same reps at the same weight (and >= 5 reps), suggest a small jump. */

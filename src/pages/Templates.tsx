@@ -9,7 +9,11 @@ import { saveTemplate, deleteTemplate, startWorkout } from '../lib/actions'
 export function TemplatesPage() {
   useStoreVersion()
   const { me } = useMe()
-  const list = templates()
+  const all = templates()
+  const mine = all.filter((t) => t.data.createdBy === me)
+  const others = all.filter((t) => t.data.createdBy !== me)
+  const [showOthers, setShowOthers] = useState(false)
+  const list = [...mine, ...(showOthers ? others : others.slice(0, mine.length ? 3 : 6))]
   const [edit, setEdit] = useState<null | { id?: string }>(null)
   const active = activeWorkout(me)
 
@@ -24,7 +28,7 @@ export function TemplatesPage() {
         }
       />
       <div className="page">
-        {list.length === 0 && (
+        {all.length === 0 && (
           <div className="empty">
             <h3>Ingen maler ennå</h3>
             <p>Lag en mal for push, pull, bein eller hva dere kjører, så starter dere økta med ett trykk.</p>
@@ -42,8 +46,9 @@ export function TemplatesPage() {
           </div>
         )}
         <div className="stack">
-          {list.map((t) => (
+          {list.map((t, i) => (
             <div key={t.id} className="card">
+              {i === mine.length && others.length > 0 && <div className="tiny muted" style={{ marginBottom: 6 }}>Fra gruppene dine</div>}
               <div className="spread">
                 <h2>{t.data.name}</h2>
                 <Avatar id={t.data.createdBy} size="sm" />
@@ -73,14 +78,25 @@ export function TemplatesPage() {
                 >
                   Start økt
                 </button>
-                <button className="btn" onClick={() => setEdit({ id: t.id })}>
-                  Rediger
-                </button>
+                {t.data.createdBy === me ? (
+                  <button className="btn" onClick={() => setEdit({ id: t.id })}>
+                    Rediger
+                  </button>
+                ) : (
+                  <button className="btn" onClick={() => (saveTemplate({ ...t.data, name: t.data.name, createdBy: me as UserId }), toast(`«${t.data.name}» er kopiert til dine maler`))}>
+                    Kopier
+                  </button>
+                )}
               </div>
             </div>
           ))}
+          {others.length > list.length - mine.length && (
+            <button className="btn ghost block" onClick={() => setShowOthers(true)}>
+              Vis alle {others.length} maler fra gruppene dine
+            </button>
+          )}
         </div>
-        {list.length > 0 && (
+        {all.length > 0 && (
           <details style={{ marginTop: 24 }}>
             <summary className="small muted" style={{ cursor: 'pointer' }}>
               Legg til ferdige forslag

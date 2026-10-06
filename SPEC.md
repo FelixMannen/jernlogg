@@ -1,16 +1,16 @@
 # Jernlogg — kravspesifikasjon
 
-Styrketreningslogg for tre kompiser: **Felix, David og Erik**. Brukes på mobilen i gymmen,
+Styrke- og løpelogg, startet for tre kompiser (**Felix, David og Erik**) og nå åpen for alle med grupper. Brukes på mobilen i gymmen,
 mellom settene, ofte med svette fingre og 60 sekunder hvile. Alt skal gå raskt.
 
 ## Rammer
 - **Stack:** Vite + React + TypeScript, ren CSS med design-tokens, ingen tunge UI-biblioteker.
-- **Database:** Supabase (Postgres). Én generisk tabell `docs (id, collection, data jsonb, created_at, updated_at, deleted)`
-  slik at nye funksjoner aldri krever migrering. Realtime-abonnement på tabellen.
+- **Database:** Supabase (Postgres). Én generisk tabell `docs (id, collection, data jsonb, created_at, updated_at, deleted, synced_at)`
+  slik at nye funksjoner nesten aldri krever migrering. Realtime-abonnement på tabellen. Tilgang styres av RLS (`supabase/auth.sql`).
 - **Hosting:** Vercel, auto-deploy fra GitHub ved hver push.
 - **Lokal modus:** samme app kjører mot en localStorage-adapter når Supabase ikke er konfigurert (`?local=1`),
   brukt til automatisert testing.
-- **Brukere:** ingen passord. Velg navn ved første besøk (huskes på enheten). Kan bytte bruker i menyen.
+- **Brukere:** innlogging med kode på e-post (se «Innlogging og treningsgrupper»). Tidligere: navnevelger uten innlogging.
 - **Språk/stil:** norsk bokmål, mørkt tema, mobil først (360–430 px), men skal se ok ut på desktop.
   Store trykkflater (≥ 44 px), tall i tabulær font, høy kontrast.
 
@@ -85,3 +85,16 @@ Når v1 er live, gjenta i ~45 min:
 - Lager: total i samme enhet som dosen, telles fra `refillAt`; varsel én gang når ≤ 7 dager igjen; «Ny boks» nullstiller.
 - Påminnelser (hele timer): hvis en dose ikke er krysset av når timen er nådd. Slås sammen med treningspåminnelsen når begge går samme time. «Tatt ✓»-knapp i varselet (Android/PC) via `/api/supp-take`; iPhone åpner `#/supplementer`. Kan slås av under Varsler.
 - Mat: senere steg (ikke bygget).
+
+## Innlogging og treningsgrupper (bygget 2026-10-06)
+- **Innlogging** med 6-sifret kode på e-post (Supabase Auth, ingen passord). Økta huskes på enheten (oppfriskes automatisk), og appen starter fra cache uten nett. Alle kan registrere seg.
+- **Kontoer:** `account:<auth uid>` → app-bruker-id. Felix kobles automatisk via e-post (bare hash i koden). David og Erik kobles med engangslenke som Felix lager under Profil → «Koble David og Erik» (`#/koble/<bruker>/<kode>`). Nye brukere får id `u…`, navn, farge og symbol.
+- **Tilgang (RLS i `supabase/auth.sql`):** du ser egne data + data fra folk som deler gruppe med deg. Kroppsvekt, supplementer, push-abonnementer og kontoen er alltid private. Private økter ser bare eieren. Grupper/medlemskap endres bare via RPC-er. `lockdown.sql` fjerner anon-tilgangen helt.
+- **Grupper:** alle økter teller automatisk i alle gruppene dine. Én admin (kan gi admin videre, fjerne medlemmer, slå av/fornye invitasjonslenke, gjøre gruppa offentlig). Går admin ut, går rollen til eldste medlem; siste medlem legger ned gruppa. Invitasjon med lenke `#/bli-med/<kode>` eller QR-kode. Startgruppe: «Jernlogg-gjengen» (felix, david, erik).
+- **Felles mål** (km / økter / kg i en periode) og **ukas utfordring** (flest reps eller tyngste løft i en øvelse, flest økter, km eller volum; kan gjentas hver uke) – satt av admin.
+- **Feed og topplister** kan vises for alle grupper eller én gruppe (`useScope`). Lange lister viser topp 10 + deg.
+- **Offentlige grupper** havner på gruppe-topplisten (`#/grupper/topp`): kg løftet (vekt × reps i fullførte arbeidssett) og km løpt, denne uka / måneden / i år, totalt eller per medlem. Regnes på serveren (`jl_group_board`).
+- **Privat økt:** teller i egen statistikk og eget ukesmål, aldri i grupper, topplister, utfordringer, mål eller varsler.
+- **Personvern:** `#/personvern`, last ned egne data, «Slett kontoen min» (sletter alt brukeren eier, også innloggingen).
+- **Tilbakemeldinger:** fra felix/david/erik behandles direkte. Fra andre (og klager fra andre) må Felix godkjenne først (`feedback_review`), og Claude bruker den godkjente teksten.
+- **Ytelse:** databasen sender bare det du har tilgang til; etter første lasting hentes bare endringer (`synced_at`), full lasting maks hver 12. time eller når medlemskap endres; cache i IndexedDB; indeks per samling i minnet.

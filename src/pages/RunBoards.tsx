@@ -1,7 +1,8 @@
 import { useState, type ComponentType } from 'react'
 import { Avatar, go } from '../components/ui'
-import { USERS, type UserId } from '../lib/domain'
-import { startOfWeek, fmtDate } from '../lib/stats'
+import { type UserId } from '../lib/domain'
+import { startOfWeek, fmtDate, sharedOnly } from '../lib/stats'
+import { userById, type UserInfo } from '../lib/users'
 import { kmInRange, runRecords, routes, routeBoard, fmtKm, fmtRunTime, fmtPace, runs } from '../lib/runs'
 
 type Row = { id: UserId; value: number; sub?: string }
@@ -15,7 +16,7 @@ function TimeBoard({ rows, fmt, empty, onRow }: { rows: (Row & { workoutId?: str
   return (
     <div>
       {have.map((r, i) => {
-        const u = USERS.find((x) => x.id === r.id)!
+        const u = userById(r.id)
         return (
           <button key={r.id} className="lb-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => onRow?.(r)}>
             <span className={`lb-rank ${i === 0 ? 'first' : ''}`}>{i + 1}</span>
@@ -36,9 +37,13 @@ function TimeBoard({ rows, fmt, empty, onRow }: { rows: (Row & { workoutId?: str
   )
 }
 
-export function RunBoards({ Board }: { Board: BoardT }) {
+export function RunBoards({ Board, people }: { Board: BoardT; people: UserInfo[] }) {
   const list = routes()
   const [routeId, setRouteId] = useState<string | undefined>(list[0]?.id)
+  return sharedOnly(() => RunBoardsView({ Board, USERS: people, list, routeId, setRouteId }))
+}
+
+function RunBoardsView({ Board, USERS, list, routeId, setRouteId }: { Board: BoardT; USERS: UserInfo[]; list: ReturnType<typeof routes>; routeId?: string; setRouteId: (id: string) => void }) {
   const weekStart = startOfWeek()
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   const week = USERS.map((u) => ({ u, k: kmInRange(u.id, weekStart) }))
@@ -94,7 +99,7 @@ export function RunBoards({ Board }: { Board: BoardT }) {
           </div>
           {routeId && (
             <TimeBoard
-              rows={routeBoard(routeId).map((b) => ({ id: b.userId, value: b.sec, sub: fmtDate(b.date), workoutId: b.workoutId }))}
+              rows={routeBoard(routeId).filter((b) => USERS.some((u) => u.id === b.userId)).map((b) => ({ id: b.userId, value: b.sec, sub: fmtDate(b.date), workoutId: b.workoutId }))}
               fmt={(v) => fmtRunTime(v)}
               empty="Ingen målte tider på denne ruta ennå."
               onRow={(r) => r.workoutId && go(`w/${r.workoutId}`)}

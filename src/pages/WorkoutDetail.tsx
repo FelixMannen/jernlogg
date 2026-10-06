@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMe, TopBar, Avatar, back, go, Icon, confirmDialog, toast, Sheet, useNow } from '../components/ui'
 import { useStoreVersion, getDoc } from '../lib/store'
-import { userById, REACTIONS, FEELINGS, FEELING_LABEL, type Workout, type UserId } from '../lib/domain'
+import { REACTIONS, FEELINGS, FEELING_LABEL, type Workout, type UserId } from '../lib/domain'
+import { userById } from '../lib/users'
 import {
   exerciseById,
   workoutVolume,
@@ -63,7 +64,8 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
           <div className="grow">
             <div style={{ fontWeight: 700 }}>{summary ? w.title : u.name}</div>
             <div className="tiny muted">
-              {w.status === 'active' ? 'Pågår nå' : fmtRelDate(w.startedAt)} {summary ? '' : ''}
+              {w.status === 'active' ? 'Pågår nå' : fmtRelDate(w.startedAt)}
+              {w.private && <span className="private-tag">🔒 Privat – bare du ser denne</span>}
             </div>
           </div>
         </div>
@@ -167,7 +169,7 @@ export function WorkoutDetailPage({ id, summary }: { id: string; summary?: boole
           )
         })}
 
-        {w.status === 'done' && (
+        {w.status === 'done' && !w.private && (
           <div className="card">
             <div className="reactions" style={{ marginTop: 0 }}>
               {REACTIONS.map((e) => {

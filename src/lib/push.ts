@@ -5,8 +5,9 @@ import { put, remove, getDoc, getStatus, list } from './store'
 import type { UserId, Profile } from './domain'
 import { profile } from './stats'
 import { setProfile } from './actions'
+import { supabase } from './supabase'
 
-export type PushSub = { userId: UserId; endpoint: string; keys: { p256dh: string; auth: string }; ua: string; platform: string; tz: string; createdAt: string }
+export type PushSub = { userId: UserId; endpoint: string; keys: { p256dh: string; auth: string }; ua: string; platform: string; tz: string; createdAt: string; seenAt?: string }
 export type NotifyPrefs = NonNullable<Profile['notify']>
 
 export const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -32,9 +33,12 @@ function b64ToBytes(b64: string) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0))
 }
 
-async function subId(endpoint: string) {
+/** One doc per device and user (a shared device can't take over someone else's doc; the server sends to the newest). */
+async function subId(endpoint: string, userId: string) {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint))
-  return 'push:' + [...new Uint8Array(hash)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('')
+  const base = 'push:' + [...new Uint8Array(hash)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('')
+  const legacy = getDoc<PushSub>(base)
+  return legacy && legacy.data.userId === userId ? base : `${base}:${userId}`
 }
 
 async function registration(): Promise<ServiceWorkerRegistration | null> {
@@ -69,9 +73,10 @@ export async function pushState(): Promise<PushState> {
 
 async function saveSub(userId: UserId, sub: PushSubscription) {
   const json = sub.toJSON() as any
-  const id = await subId(sub.endpoint)
+  const id = await subId(sub.endpoint, userId)
   const cur = getDoc<PushSub>(id)?.data
-  if (cur && cur.userId === userId && cur.keys?.auth === json.keys?.auth) return
+  // refresh at most daily so the server knows which user used this device last
+  if (cur && cur.userId === userId && cur.keys?.auth === json.keys?.auth && Date.now() - Date.parse(cur.seenAt ?? cur.createdAt) < 86400e3) return
   put('push_subscriptions', id, {
     userId,
     endpoint: sub.endpoint,
@@ -80,6 +85,7 @@ async function saveSub(userId: UserId, sub: PushSubscription) {
     platform: isIOS() ? 'ios' : /android/i.test(navigator.userAgent) ? 'android' : 'desktop',
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Oslo',
     createdAt: cur?.createdAt ?? new Date().toISOString(),
+    seenAt: new Date().toISOString(),
   } as PushSub)
 }
 
@@ -98,13 +104,25 @@ export async function enablePush(userId: UserId): Promise<PushState> {
   return 'on'
 }
 
-export async function disablePush(): Promise<void> {
+export async function disablePush(userId: string): Promise<void> {
   const reg = await registration()
   const sub = await reg?.pushManager.getSubscription()
   if (!sub) return
-  remove(await subId(sub.endpoint))
+  remove(await subId(sub.endpoint, userId))
   await sub.unsubscribe().catch(() => {})
   await waitForSync()
+}
+
+/** On sign-out: stop this device from getting the signed-out user's notifications (keeps the browser subscription). */
+export async function forgetDevice(userId: string): Promise<void> {
+  try {
+    const reg = await registration()
+    const sub = await reg?.pushManager.getSubscription()
+    if (!sub) return
+    const id = await subId(sub.endpoint, userId)
+    if (getDoc(id)) remove(id)
+    await waitForSync(4000)
+  } catch {}
 }
 
 /** Keep this device's subscription linked to the current user (e.g. after switching user). */
@@ -125,7 +143,8 @@ async function waitForSync(maxMs = 8000) {
 }
 
 async function api(path: string, body: unknown) {
-  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const token = supabase ? (await supabase.auth.getSession()).data.session?.access_token : undefined
+  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) })
   let j: any = {}
   try {
     j = await r.json()
@@ -134,9 +153,9 @@ async function api(path: string, body: unknown) {
   return j
 }
 
-export async function sendTestPush(userId: UserId): Promise<{ sent: number; devices: number; errors: string[] }> {
+export async function sendTestPush(_userId: UserId): Promise<{ sent: number; devices: number; errors: string[] }> {
   await waitForSync()
-  return api('/api/push-test', { userId })
+  return api('/api/push-test', {})
 }
 
 /** Tell the others that a workout was just finished (fire and forget). */

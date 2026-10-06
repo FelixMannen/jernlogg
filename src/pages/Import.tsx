@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import { TopBar, Icon, useMe, toast, go } from '../components/ui'
 import { ExercisePicker } from '../components/ExercisePicker'
 import { useStoreVersion, put, uid } from '../lib/store'
-import { USERS, userById, type UserId, type Workout } from '../lib/domain'
+import { type UserId, type Workout } from '../lib/domain'
+import { userById } from '../lib/users'
 import { exercises, exerciseById, doneWorkouts, fmtKg } from '../lib/stats'
 import { addCustomExercise } from '../lib/actions'
 import { parseWorkoutText, decodeImportParam, extractImportParam, type ParseResult } from '../lib/importText'
@@ -41,15 +42,15 @@ function matchExercise(name: string): string | null {
   return all.find((e) => norm(e.name) === n)?.id ?? all.find((e) => e.alt && norm(e.alt) === n)?.id ?? null
 }
 
+function isMe(name: string, me: string) {
+  return norm(name) === norm(userById(me).name) || norm(name) === me
+}
+
 function buildDraft(text: string, me: UserId): Draft {
   const r = parseWorkoutText(text)
   const warnings: string[] = []
-  let userId = me
-  if (r.user) {
-    const u = USERS.find((x) => norm(x.name) === norm(r.user!) || x.id === norm(r.user!))
-    if (u) userId = u.id
-    else warnings.push(`Ukjent bruker «${r.user}» – bruker ${userById(me).name}. Bytt under hvis det er feil.`)
-  } else warnings.push(`Teksten sier ikke hvem økta gjelder – bruker ${userById(me).name}.`)
+  const userId = me
+  if (r.user && !isMe(r.user, me)) warnings.push(`Teksten gjelder «${r.user}», men økta lagres på deg (${userById(me).name}) – du kan bare lagre økter på din egen konto.`)
   const date = r.date ? new Date(r.date.y, r.date.m - 1, r.date.d, r.date.hh, r.date.mm) : new Date()
   // merge lines that resolve to the same known exercise (e.g. "Benkpress" and "bench press")
   const exs: DraftExercise[] = []
@@ -273,16 +274,6 @@ export function ImportPage() {
         )}
 
         <section className="card stack">
-          <div className="field">
-            <span>Hvem</span>
-            <div className="chips" style={{ margin: 0, padding: 0 }}>
-              {USERS.map((u) => (
-                <button key={u.id} className={`chip ${d.userId === u.id ? 'on' : ''}`} onClick={() => upd((x) => void (x.userId = u.id))}>
-                  <span style={{ width: 8, height: 8, borderRadius: 4, background: u.color }} /> {u.name}
-                </button>
-              ))}
-            </div>
-          </div>
           <label className="field">
             <span>Tittel</span>
             <input className="input" value={d.title} onChange={(e) => upd((x) => void (x.title = e.target.value))} />
@@ -431,12 +422,8 @@ function interpret(text: string, me: UserId): Draft | RunDraft {
   if (!r.run) return buildDraft(text, me)
   const warnings: string[] = []
   const errors = [...r.errors]
-  let userId = me
-  if (r.user) {
-    const u = USERS.find((x) => norm(x.name) === norm(r.user!) || x.id === norm(r.user!))
-    if (u) userId = u.id
-    else warnings.push(`Ukjent bruker «${r.user}» – bruker ${userById(me).name}. Bytt under hvis det er feil.`)
-  } else warnings.push(`Teksten sier ikke hvem løpeturen gjelder – bruker ${userById(me).name}.`)
+  const userId = me
+  if (r.user && !isMe(r.user, me)) warnings.push(`Teksten gjelder «${r.user}», men løpeturen lagres på deg (${userById(me).name}) – du kan bare lagre økter på din egen konto.`)
   if (r.exercises.length) errors.push({ line: r.exercises[0].line, text: r.exercises.map((e) => e.name).join(', '), message: 'styrkeøvelser og løpetur i samme tekst – bare løpeturen importeres her. Importer styrkeøkta for seg.' })
   const run = r.run
   let routeId: string | undefined
@@ -504,7 +491,7 @@ function RunImport({ draft, onChange, onDone, onCancel }: { draft: RunDraft; onC
             ⚠️ <b>Denne løpeturen ser ut til å være lagret fra før</b> (samme dag og distanse/rute). Du kan lagre likevel.
           </div>
         )}
-        <RunForm values={draft.values} onChange={(values) => onChange({ ...draft, values })} showUser />
+        <RunForm values={draft.values} onChange={(values) => onChange({ ...draft, values })} />
         <button
           className="btn primary big block"
           disabled={!ok}

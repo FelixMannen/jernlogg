@@ -45,7 +45,7 @@ function startOfIsoWeek(dateStr) {
  * @param docs { subs, profiles, workouts, logs } – arrays of docs {id, data}
  * @returns [{ userId, logId, payload }]
  */
-export function decideReminders(now, users, { subs, profiles, workouts, logs }) {
+export function decideReminders(now, users, { subs, profiles, workouts, logs, peers }) {
   const logIds = new Set(logs.map((l) => l.id))
   const out = []
   for (const userId of Object.keys(users)) {
@@ -71,11 +71,12 @@ export function decideReminders(now, users, { subs, profiles, workouts, logs }) 
     const doneThisWeek = inWeek.length
     const runsThisWeek = inWeek.filter((w) => w.data.kind === 'run').length
     const remaining = goalRemaining(profile, doneThisWeek - runsThisWeek, runsThisWeek, inWeek)
+    // compare with friends (people in the same groups); private workouts never count for others
     const friendWeek = Object.keys(users)
-      .filter((u) => u !== userId)
+      .filter((u) => u !== userId && (!peers || (peers[userId] && peers[userId].has(u))))
       .map((u) => ({
         u,
-        n: workouts.filter((w) => w.data.userId === u && w.data.status === 'done' && localParts(new Date(w.data.startedAt), p.tz).date >= weekStart).length,
+        n: workouts.filter((w) => w.data.userId === u && w.data.status === 'done' && !w.data.private && localParts(new Date(w.data.startedAt), p.tz).date >= weekStart).length,
       }))
       .sort((a, b) => b.n - a.n)[0]
     let body

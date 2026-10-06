@@ -1,14 +1,15 @@
-export type UserId = 'felix' | 'david' | 'erik'
+/** App user id: 'felix' | 'david' | 'erik' for the original three, 'u…' for everyone who signed up later. */
+export type UserId = string
 
-export const USERS: { id: UserId; name: string; color: string; plate: string }[] = [
-  { id: 'felix', name: 'Felix', color: '#E5483D', plate: '25' },
-  { id: 'david', name: 'David', color: '#3D7BEA', plate: '20' },
-  { id: 'erik', name: 'Erik', color: '#EDB92E', plate: '15' },
+/** Defaults for the original three (their profiles may not have a name/colour stored). */
+export const LEGACY_USERS: { id: string; name: string; color: string }[] = [
+  { id: 'felix', name: 'Felix', color: '#E5483D' },
+  { id: 'david', name: 'David', color: '#3D7BEA' },
+  { id: 'erik', name: 'Erik', color: '#EDB92E' },
 ]
 
-export function userById(id: string) {
-  return USERS.find((u) => u.id === id) ?? { id: id as UserId, name: id, color: '#888', plate: '' }
-}
+export const USER_COLORS = ['#E5483D', '#3D7BEA', '#EDB92E', '#2FB57C', '#A35BE8', '#F07F2E', '#E0559B', '#2BB5C9', '#8FB339', '#B0855A']
+export const USER_EMOJIS = ['🦍', '🐻', '🦊', '🐺', '🦁', '🐯', '🦅', '🐂', '🦈', '🔥', '⚡', '🏔️']
 
 export type MuscleGroup = 'Bryst' | 'Rygg' | 'Bein' | 'Skuldre' | 'Armer' | 'Core' | 'Annet'
 export const GROUPS: MuscleGroup[] = ['Bryst', 'Rygg', 'Bein', 'Skuldre', 'Armer', 'Core', 'Annet']
@@ -134,6 +135,7 @@ export type Workout = {
   kind?: 'strength' | 'run' // missing = strength (all workouts before running existed)
   run?: RunData
   reopenedFrom?: string // set while a finished workout is being edited (original endedAt)
+  private?: boolean // only visible to the owner; counts in own stats, never in groups/leaderboards
 }
 
 export type RunType = 'rolig' | 'intervall' | 'terskel' | 'langtur' | 'konkurranse'
@@ -179,6 +181,9 @@ export type Template = {
 }
 
 export type Profile = {
+  name?: string // display name (set at sign-up / in settings)
+  color?: string
+  emoji?: string // optional avatar symbol instead of the initial
   restSeconds?: number
   bodyweight?: number
   weeklyGoal?: number // legacy: total sessions per week
@@ -205,9 +210,38 @@ export type Feedback = {
   attempts?: { reply: string; doneAt: string }[] // earlier attempts that got a complaint
 }
 
+/** Felix approves feedback from people outside the original three before Claude acts on it. */
+export type FeedbackReview = { feedbackId: string; approved: boolean; text: string; at: string }
+
 export type FeedbackComplaint = {
   feedbackId: string
   userId: UserId
   text: string
   at: string
+}
+
+export type Group = {
+  name: string
+  emoji?: string
+  description?: string
+  adminId: UserId
+  public?: boolean
+  inviteCode: string
+  inviteEnabled?: boolean
+  createdAt: string
+  createdBy: UserId
+  goal?: GroupGoal
+  challenge?: GroupChallenge
+}
+export type GroupMember = { groupId: string; userId: UserId; joinedAt: string }
+
+/** Felles mål: e.g. «100 km løping i oktober» – everyone's (non-private) workouts in the period add up. */
+export type GroupGoal = { metric: 'km' | 'sessions' | 'kg'; target: number; from: string; to: string; title?: string }
+
+/** Ukas utfordring set by the admin. `weekOf` = monday (yyyy-mm-dd); repeat = same challenge every week. */
+export type GroupChallenge = {
+  kind: 'reps' | 'heaviest' | 'sessions' | 'km' | 'volume'
+  exerciseId?: string
+  weekOf: string
+  repeat?: boolean
 }

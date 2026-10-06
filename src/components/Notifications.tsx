@@ -201,7 +201,7 @@ export function NotificationsSection() {
             className="btn ghost"
             disabled={busy}
             onClick={async () => {
-              await disablePush()
+              await disablePush(me)
               setState(await pushState())
               toast('Varsler er slått av på denne enheten')
             }}

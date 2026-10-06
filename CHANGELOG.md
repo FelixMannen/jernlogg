@@ -127,3 +127,18 @@
 - Påminnelse hvis en dose ikke er krysset av innen klokkeslettet – slås sammen med treningspåminnelsen når de kommer samtidig. «Tatt ✓»-knapp rett i varselet på Android/PC (iPhone: trykk på varselet)
 - Supplementer er private – bare du ser dine
 - Ny bryter under Varsler: «Supplementer»
+
+## Runde 21 – innlogging og treningsgrupper
+- **Innlogging med kode på e-post** – ingen passord, appen husker deg. Nye brukere velger navn, farge og symbol. Felix kobles automatisk; David og Erik får en engangslenke fra Felix som kobler dem til historikken sin
+- **Tilgangsregler i databasen** (`supabase/auth.sql`, bare additivt): du ser bare dine egne data og data fra gruppene dine. Kroppsvekt og supplementer er alltid private
+- **Grupper:** lag gruppe, inviter med lenke eller QR-kode, én admin (gi videre, fjern medlem, slå av/fornye lenke), forlat gruppe. «Jernlogg-gjengen» er første gruppe
+- **Felles mål** og **ukas utfordring** per gruppe; «Denne uka»-oversikt og medlemsliste
+- **Feed og topplister per gruppe** (velg «Alle grupper» eller én gruppe), topp 10 + deg på lange lister
+- **Offentlige grupper og gruppe-toppliste** (kg løftet / km løpt, uke / måned / år, totalt eller per medlem)
+- **Privat økt** (bryter i økta, løpeskjemaet og ⋯-menyen): teller bare i din egen statistikk
+- **Personvern-side**, last ned egne data, slett konto
+- **Tilbakemeldinger:** forslag og klager fra nye brukere må godkjennes av Felix før Claude gjør noe med dem
+- **API:** service-nøkkel på serveren, innloggingssjekk på `notify`/`push-test`, varsler bare til gruppevenner, signert «Tatt ✓», påminnelser sammenligner bare med gruppevenner
+- **Ytelse:** bare relevante data lastes, deretter bare endringer; cache i IndexedDB (ingen 5 MB-grense); raskere oppslag per samling
+- Import lagrer alltid på din egen konto (advarsel hvis teksten gjelder en annen)
+- Nye tester: `scripts/test-rls.mjs` (96 sjekker av tilgangsreglene i ekte Postgres/PGlite), `scripts/groups-e2e.mjs`

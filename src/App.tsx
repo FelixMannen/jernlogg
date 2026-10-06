@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { MeContext, useMe, useRoute, Icon, ToastHost, ConfirmHost, useNow, vibrate, beep, toast } from './components/ui'
-import { init, useStoreVersion, getStatus } from './lib/store'
-import { USERS, userById } from './lib/domain'
+import { useStoreVersion, getStatus } from './lib/store'
+import { userById } from './lib/users'
 import { activeWorkout, fmtDuration, doneWorkouts, activeWorkouts, prsForWorkout } from './lib/stats'
 import { getRest, subscribeRest, adjustRest, stopRest } from './lib/actions'
 import { list } from './lib/store'
-import type { Reaction, Comment, UserId } from './lib/domain'
+import type { Reaction, Comment } from './lib/domain'
 import { FeedPage } from './pages/Feed'
 import { WorkoutPage } from './pages/Workout'
 import { WorkoutDetailPage } from './pages/WorkoutDetail'
@@ -18,68 +18,52 @@ import { FeedbackPage } from './pages/Feedback'
 import { SupplementsTodayPage } from './components/Supplements'
 import { ImportPage } from './pages/Import'
 import { RunStartPage, RunFormPage } from './pages/Run'
+import { GroupsPage, GroupPage, JoinPage, GroupBoardPage } from './pages/Groups'
+import { PrivacyPage } from './pages/Privacy'
+import { LoginPage, OnboardingPage, LoadingScreen, AuthErrorScreen, ClaimPage } from './pages/Auth'
 import { stopwatchElapsed } from './lib/actions'
 import { syncSubscription } from './lib/push'
+import { startAuth, useAuth, rememberLink, takeLink } from './lib/auth'
 
-init()
-
-const ME_KEY = 'jernlogg.me'
+// Links that need a login (group invite, linking an old user) are remembered until signed in.
+if (/^#\/?(bli-med|koble)\//.test(location.hash)) rememberLink(location.hash)
+startAuth()
 
 export default function App() {
-  const [me, setMeState] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(ME_KEY)
-    } catch {
-      return null
-    }
-  })
-  const setMe = (id: string | null) => {
-    try {
-      if (id) localStorage.setItem(ME_KEY, id)
-      else localStorage.removeItem(ME_KEY)
-    } catch {}
-    setMeState(id)
-  }
+  const auth = useAuth()
+  useRoute() // re-render on hash changes (links opened while signed out)
+  if (auth.phase !== 'ready' && /^#\/?(bli-med|koble)\//.test(location.hash)) rememberLink(location.hash)
+  const me = auth.phase === 'ready' ? auth.userId : null
+  useStoreVersion()
+  const meInfo = me ? userById(me) : null
   useEffect(() => {
-    const color = me ? userById(me).color : '#eceae4'
-    document.documentElement.style.setProperty('--me', color)
-    document.documentElement.style.setProperty('--me-ink', me === 'erik' ? '#1a1400' : '#fff')
+    document.documentElement.style.setProperty('--me', meInfo?.color ?? '#eceae4')
+    document.documentElement.style.setProperty('--me-ink', meInfo?.ink ?? '#15181c')
     document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#15181c')
-  }, [me])
+  }, [meInfo?.color, meInfo?.ink])
+  useEffect(() => {
+    if (auth.phase !== 'ready') return
+    const pending = takeLink()
+    if (pending && pending !== location.hash) location.hash = pending.replace(/^#/, '')
+  }, [auth.phase])
 
-  if (!me) return <UserPicker onPick={setMe} />
+  let content
+  if (auth.phase === 'loading') content = <LoadingScreen />
+  else if (auth.phase === 'signedOut') content = <LoginPage />
+  else if (auth.phase === 'onboarding') content = <OnboardingPage email={auth.email} />
+  else if (auth.phase === 'error') content = <AuthErrorScreen message={auth.message} />
+  else
+    content = (
+      <MeContext.Provider value={{ me: auth.userId, email: auth.email }}>
+        <Shell key={auth.userId} />
+      </MeContext.Provider>
+    )
   return (
-    <MeContext.Provider value={{ me, setMe }}>
-      <Shell />
+    <>
+      {content}
       <ToastHost />
       <ConfirmHost />
-    </MeContext.Provider>
-  )
-}
-
-function UserPicker({ onPick }: { onPick: (id: string) => void }) {
-  return (
-    <div className="picker">
-      <h1>
-        Jern
-        <br />
-        logg
-      </h1>
-      <p className="muted" style={{ margin: '12px 0 32px' }}>
-        Hvem er det som trener?
-      </p>
-      {USERS.map((u) => (
-        <button key={u.id} className="picker-btn" onClick={() => onPick(u.id)}>
-          <span className="plate-letter lg" style={{ ['--c' as any]: u.color, width: 52, height: 52, fontSize: '1.625rem' }}>
-            {u.name[0]}
-          </span>
-          {u.name}
-        </button>
-      ))}
-      <p className="tiny muted" style={{ marginTop: 24 }}>
-        Valget huskes på denne enheten. Du kan bytte under Profil.
-      </p>
-    </div>
+    </>
   )
 }
 
@@ -128,7 +112,7 @@ function Shell() {
   useStoreVersion()
   const { me } = useMe()
   useEffect(() => {
-    syncSubscription(me as UserId)
+    syncSubscription(me)
   }, [me])
   useFriendNotifications(me)
   const route = useRoute()
@@ -169,6 +153,21 @@ function Shell() {
     case 'supplementer':
       page = <SupplementsTodayPage />
       break
+    case 'grupper':
+      page = r1 === 'topp' ? <GroupBoardPage /> : <GroupsPage />
+      break
+    case 'g':
+      page = <GroupPage key={r1} id={r1} />
+      break
+    case 'bli-med':
+      page = <JoinPage key={r1} code={r1} />
+      break
+    case 'koble':
+      page = <ClaimPage legacy={r1} code={r2} />
+      break
+    case 'personvern':
+      page = <PrivacyPage />
+      break
     case 'tilbakemeldinger':
       page = <FeedbackPage />
       break
@@ -201,7 +200,12 @@ function Nav({ current }: { current: string }) {
         <NavLink to="topp" label="Topplister" icon={<Icon.trophy />} on={current === 'topp' || current === 'ex'} />
         <StartLink on={current === 'okt' || current === 'import' || current === 'lop'} />
         <NavLink to="maler" label="Maler" icon={<Icon.list />} on={current === 'maler'} />
-        <NavLink to="profil" label="Profil" icon={<Icon.user />} on={current === 'profil' || current === 'u' || current === 'verktoy' || current === 'tilbakemeldinger' || current === 'supplementer'} />
+        <NavLink
+          to="profil"
+          label="Profil"
+          icon={<Icon.user />}
+          on={['profil', 'u', 'verktoy', 'tilbakemeldinger', 'supplementer', 'grupper', 'g', 'personvern', 'koble', 'bli-med'].includes(current)}
+        />
       </div>
     </nav>
   )

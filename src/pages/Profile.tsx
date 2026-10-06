@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { TopBar, Avatar, useMe, go, back, Icon, Sheet, toast } from '../components/ui'
 import { BarChart, LineChart } from '../components/charts'
 import { useStoreVersion, getStatus, allDocs } from '../lib/store'
-import { USERS, userById, type UserId } from '../lib/domain'
+import { type UserId } from '../lib/domain'
+import { userById, knownUsers, myGroups } from '../lib/users'
+import { owner, APP_ADMIN } from '../lib/access'
+import { AccountSection, LegacyLinksSection } from '../components/Account'
 import {
   doneWorkouts,
   weeklyVolume,
@@ -27,7 +30,7 @@ import {
   PR_LABEL,
   fmtRelDate,
 } from '../lib/stats'
-import { addBodyweight, setProfile, sendFeedback, feedbackList } from '../lib/actions'
+import { addBodyweight, setProfile, sendFeedback, feedbackList, feedbackStatus } from '../lib/actions'
 import { FeedItem } from './Feed'
 import { GoalEditor, GoalCard, RunSection } from './ProfileRun'
 import { NotificationsSection } from '../components/Notifications'
@@ -35,7 +38,7 @@ import { SupplementsSection } from '../components/Supplements'
 
 export function ProfilePage({ userId }: { userId?: string }) {
   useStoreVersion()
-  const { me, setMe } = useMe()
+  const { me } = useMe()
   const uid = (userId ?? me) as UserId
   const u = userById(uid)
   const mine = uid === me
@@ -71,12 +74,15 @@ export function ProfilePage({ userId }: { userId?: string }) {
           <div className="grow">
             <h1 style={{ fontSize: '2.25rem' }}>{u.name}</h1>
             <div className="small muted">
-              {latestBodyweight(uid) ? `${fmtKg(latestBodyweight(uid))} kg kroppsvekt` : mine ? 'Legg inn kroppsvekt for relativ styrke' : ''}
+              {mine ? (latestBodyweight(uid) ? `${fmtKg(latestBodyweight(uid))} kg kroppsvekt` : 'Legg inn kroppsvekt for relativ styrke') : ''}
             </div>
           </div>
         </div>
         {mine && (
           <div className="chips">
+            <button className="chip" onClick={() => go('grupper')}>
+              👥 Grupper{myGroups(me).length ? ` (${myGroups(me).length})` : ''}
+            </button>
             <button className="chip" onClick={() => go('verktoy')}>
               🧮 Skive- og 1RM-kalkulator
             </button>
@@ -84,11 +90,14 @@ export function ProfilePage({ userId }: { userId?: string }) {
         )}
         {!mine && (
           <div className="chips">
-            {USERS.filter((x) => x.id !== uid).map((x) => (
-              <button key={x.id} className="chip" onClick={() => go(`u/${x.id}`)}>
-                Se {x.name}
-              </button>
-            ))}
+            {knownUsers(me)
+              .filter((x) => x !== uid && x !== me)
+              .slice(0, 8)
+              .map((x) => (
+                <button key={x} className="chip" onClick={() => go(`u/${x}`)}>
+                  Se {userById(x).name}
+                </button>
+              ))}
           </div>
         )}
         <div className="stats">
@@ -162,7 +171,7 @@ export function ProfilePage({ userId }: { userId?: string }) {
           </section>
         )}
 
-        <section className="card">
+        {mine && <section className="card">
           <div className="spread" style={{ marginBottom: 4 }}>
             <h2>Kroppsvekt</h2>
             {mine && (
@@ -174,13 +183,14 @@ export function ProfilePage({ userId }: { userId?: string }) {
           {bw.length ? (
             <LineChart series={[{ name: u.name, color: u.color, points: bw.map((b) => ({ x: Date.parse(b.date), y: b.weight })) }]} height={150} />
           ) : (
-            <div className="small muted">{mine ? 'Logg vekta di for å se utviklingen og få relativ styrke på topplistene.' : 'Ingen registreringer.'}</div>
+            <div className="small muted">Logg vekta di for å se utviklingen. Bare du ser den.</div>
           )}
-        </section>
+        </section>}
 
         {mine && <SupplementsSection />}
         {mine && <NotificationsSection />}
         {mine && <FeedbackSection />}
+        {mine && me === APP_ADMIN && <LegacyLinksSection />}
 
         {ws.length > 0 && (
           <section>
@@ -194,7 +204,7 @@ export function ProfilePage({ userId }: { userId?: string }) {
         )}
       </div>
       {bwOpen && <BodyweightSheet onClose={() => setBwOpen(false)} />}
-      {settings && <SettingsSheet onClose={() => setSettings(false)} onSwitch={() => setMe(null)} />}
+      {settings && <SettingsSheet onClose={() => setSettings(false)} />}
     </>
   )
 }
@@ -226,6 +236,13 @@ function BodyweightSheet({ onClose }: { onClose: () => void }) {
   )
 }
 
+/** Everything I own (GDPR export). */
+export function downloadMyData(me: string) {
+  const docs = allDocs().filter((d) => !d.deleted && owner(d.collection, d.id, d.data) === me)
+  download(`jernlogg-${me}-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), user: me, docs }, null, 1), 'application/json')
+  toast(`Lastet ned ${docs.length} rader`)
+}
+
 function download(name: string, text: string, type: string) {
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([text], { type }))
@@ -234,7 +251,7 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-function SettingsSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: () => void }) {
+function SettingsSheet({ onClose }: { onClose: () => void }) {
   const { me } = useMe()
   const p = profile(me)
   const st = getStatus()
@@ -277,23 +294,14 @@ function SettingsSheet({ onClose, onSwitch }: { onClose: () => void; onSwitch: (
           >
             Eksporter mine sett (CSV)
           </button>
-          <button
-            className="list-item"
-            onClick={() => {
-              const docs = allDocs()
-              download(`jernlogg-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), docs }, null, 1), 'application/json')
-              toast(`Backup lastet ned (${docs.length} rader)`)
-            }}
-          >
-            Last ned full backup av alle data (JSON)
+          <button className="list-item" onClick={() => downloadMyData(me)}>
+            Last ned alle mine data (JSON)
           </button>
-          <button className="list-item" onClick={() => go('verktoy')}>
+          <button className="list-item" onClick={() => (onClose(), go('verktoy'))}>
             Verktøy: skive- og 1RM-kalkulator
           </button>
-          <button className="list-item" onClick={onSwitch}>
-            Bytt bruker
-          </button>
         </div>
+        <AccountSection onClose={onClose} />
         <p className="tiny muted">
           Database: {st.backend === 'supabase' ? 'Supabase' : 'lokal (kun denne enheten)'} · {st.status === 'offline' ? 'frakoblet' : 'tilkoblet'}
           {st.pending ? ` · ${st.pending} endringer venter` : ''}
@@ -447,14 +455,14 @@ function FeedbackSection() {
   const { me } = useMe()
   const [text, setText] = useState('')
   const all = feedbackList()
-  const open = all.filter((f) => f.data.status !== 'done').length
+  const open = all.filter((f) => feedbackStatus(f.id, f.data) !== 'done').length
   const done = all.length - open
   return (
     <section className="card stack" id="tilbakemelding">
       <div>
         <h2>Tilbakemelding på appen</h2>
         <p className="small muted" style={{ margin: '4px 0 0' }}>
-          Savner du noe, eller er noe knotete? Skriv det her. Ønskene samles i databasen og blir fikset neste gang appen oppdateres.
+          Savner du noe, eller er noe knotete? Skriv det her. Ønskene samles og blir fikset neste gang appen oppdateres.
         </p>
       </div>
       <textarea className="input" placeholder="f.eks. Vil kunne sette hviletid per øvelse" value={text} onChange={(e) => setText(e.target.value)} />

@@ -2,13 +2,15 @@
 //   node scripts/feedback.mjs list            -> open feedback
 //   node scripts/feedback.mjs all             -> all feedback
 //   node scripts/feedback.mjs done <id> "<what was changed>"
-// Needs network access to *.supabase.co. If blocked (e.g. sandbox), run the same
-// fetch calls from the browser console on https://jernlogg.vercel.app instead.
+// Needs network access to *.supabase.co AND (after login was introduced) SUPABASE_SERVICE_ROLE_KEY in the environment.
+// Simplest: open https://jernlogg.vercel.app signed in as Felix and run __jernlogg.feedbackTodo() /
+// __jernlogg.feedbackDone(id, 'beskrivelse') in the console. Feedback from people outside felix/david/erik is only
+// acted on when Felix has approved it (the script shows it, but marks it «VENTER PÅ GODKJENNING»).
 import fs from 'fs'
 const cfg = fs.readFileSync(new URL('../src/config.ts', import.meta.url), 'utf8')
 const URL_ = cfg.match(/https:\/\/[a-z0-9]+\.supabase\.co/)[0]
-const KEY = cfg.match(/'(eyJ[^']+)'/)[1]
-const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || cfg.match(/'(eyJ[^']+)'/)[1]
+const H = KEY.startsWith('sb_') ? { apikey: KEY, 'Content-Type': 'application/json' } : { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
 const [cmd = 'list', id, reply] = process.argv.slice(2)
 
 async function fetchAll() {
@@ -29,7 +31,8 @@ if (cmd === 'list' || cmd === 'all') {
   if (!rows.length) console.log('Ingen åpne tilbakemeldinger.')
   for (const d of rows) {
     const ks = complaints.filter((k) => k.data.feedbackId === d.id)
-    const tag = d.data.status === 'done' ? 'done' : ks.length ? 'KLAGE – gjør på nytt' : 'open'
+    const trusted = ['felix', 'david', 'erik'].includes(d.data.userId)
+    const tag = d.data.status === 'done' ? 'done' : ks.length ? 'KLAGE – gjør på nytt' : trusted ? 'open' : 'VENTER PÅ GODKJENNING (sjekk review:' + d.id + ')'
     console.log(`[${tag}] ${d.id}  (${d.data.userId}, ${d.data.at.slice(0, 10)})\n    ${d.data.text}`)
     for (const a of d.data.attempts ?? []) console.log(`    tidligere forsøk (${a.doneAt.slice(0, 10)}): ${a.reply}`)
     for (const k of ks) console.log(`    klage fra ${k.data.userId} (${k.data.at.slice(0, 10)}): ${k.data.text}`)

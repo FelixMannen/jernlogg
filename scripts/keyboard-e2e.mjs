@@ -12,8 +12,10 @@ await new Promise((r) => setTimeout(r, 1500))
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'nb-NO' })
 await ctx.addInitScript(() => {
-  localStorage.setItem('jernlogg.me', 'erik')
-  localStorage.setItem('jernlogg.tip1', '1')
+  try {
+    if (!localStorage.getItem('jernlogg.noMe')) localStorage.setItem('jernlogg.me', 'erik')
+    localStorage.setItem('jernlogg.tip1', '1')
+  } catch {}
   // fake visual viewport we can shrink like a keyboard would
   const et = new EventTarget()
   const state = { height: innerHeight, offsetTop: 0 }
@@ -93,6 +95,26 @@ await t('bunnmeny skjules mens tastaturet er oppe', async () => {
   await page.waitForTimeout(100)
   if (await page.locator('.nav').isVisible()) throw new Error('nav visible over keyboard')
   await page.evaluate(() => window.__kb(0))
+})
+
+await t('innlogging: knapper over tastaturet (e-post og kode)', async () => {
+  await page.evaluate(() => (localStorage.removeItem('jernlogg.me'), localStorage.setItem('jernlogg.noMe', '1')))
+  await page.reload()
+  for (const [field, button, value] of [
+    ['E-post', 'Send meg en kode', 'erik@test.no'],
+    ['Kode fra e-posten', 'Logg inn', '12'],
+  ]) {
+    await page.getByLabel(field).click()
+    await page.getByLabel(field).fill(value)
+    await page.evaluate((kb) => window.__kb(kb), KB)
+    await page.waitForTimeout(250)
+    const visibleBottom = await page.evaluate(() => window.visualViewport.height)
+    const b = await page.getByRole('button', { name: button, exact: true }).evaluate((el) => el.getBoundingClientRect().bottom)
+    if (b > visibleBottom) throw new Error(`«${button}» under tastaturet (${b} > ${visibleBottom})`)
+    await page.screenshot({ path: `${out}/login-${field.replace(/\W+/g, '-')}.png` })
+    await page.evaluate(() => window.__kb(0))
+    if (button === 'Send meg en kode') await page.getByRole('button', { name: button }).click()
+  }
 })
 
 await browser.close()

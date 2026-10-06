@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useMe, TopBar, Icon, go, confirmDialog, toast, confetti, vibrate, useNow, Sheet, unlockAudio, useWakeLock, PlateBar } from '../components/ui'
 import { ExercisePicker } from '../components/ExercisePicker'
 import { getDoc, useStoreVersion } from '../lib/store'
-import { userById, USERS, type Workout, type WorkoutExercise, type SetEntry, type UserId } from '../lib/domain'
+import { type Workout, type WorkoutExercise, type SetEntry, type UserId } from '../lib/domain'
+import { userById, knownUsers } from '../lib/users'
 import {
   activeWorkout,
   templates,
@@ -22,10 +23,11 @@ import {
   fmtRelDate,
   fmtDate,
   PR_LABEL,
+  sharedOnly,
 } from '../lib/stats'
 import { notifyFinished } from '../lib/push'
 import { RunActive } from './Run'
-import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout, setProfile } from '../lib/actions'
+import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout, setProfile, setWorkoutPrivate } from '../lib/actions'
 
 export function WorkoutPage() {
   useStoreVersion()
@@ -159,7 +161,7 @@ function Logger({ id }: { id: string }) {
       if (!ok) return
     }
     finishWorkout(id)
-    if (!editing) notifyFinished(id)
+    if (!editing && !w.private) notifyFinished(id)
     if (editing) {
       toast('Endringene er lagret')
       go(`w/${id}`)
@@ -249,6 +251,15 @@ function Logger({ id }: { id: string }) {
           <button className="btn big block" onClick={() => setPicker({})}>
             <Icon.plus /> Legg til øvelse
           </button>
+          <label className="switch-row">
+            <input type="checkbox" checked={!!w.private} onChange={(e) => setWorkoutPrivate(id, e.target.checked)} />
+            <span>
+              🔒 Privat økt
+              <span className="tiny muted" style={{ display: 'block' }}>
+                Bare du ser den. Teller i din statistikk, ikke i grupper og topplister.
+              </span>
+            </span>
+          </label>
           {!editing && (
             <button className="btn ghost block" onClick={discard}>
               Forkast økt
@@ -672,7 +683,10 @@ function NumInput({
 
 function RecordLine({ exerciseId, me }: { exerciseId: string; me: UserId }) {
   const unit = bestScore(me, exerciseId).unit
-  const rows = USERS.map((u) => ({ u, v: bestScore(u.id, exerciseId).value })).filter((r) => r.v > 0)
+  // top 4 among the people I train with (private workouts excluded), always including me
+  const all = sharedOnly(() => knownUsers(me).map((id) => ({ u: userById(id), v: bestScore(id, exerciseId).value }))).filter((r) => r.v > 0)
+  all.sort((a, b) => b.v - a.v)
+  const rows = all.filter((r, i) => i < 4 || r.u.id === me)
   if (!rows.length) return null
   const max = Math.max(...rows.map((r) => r.v))
   return (

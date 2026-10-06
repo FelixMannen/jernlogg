@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useMe, TopBar, Avatar, go, Icon, useNow } from '../components/ui'
 import { useStoreVersion, getStatus, type Doc } from '../lib/store'
-import { USERS, userById, REACTIONS, FEELINGS, type Workout, type UserId } from '../lib/domain'
+import { REACTIONS, FEELINGS, type Workout, type UserId } from '../lib/domain'
+import { userById, myGroups } from '../lib/users'
+import { useScope, scopeUsers, inScope } from '../lib/scope'
 import {
   doneWorkouts,
   activeWorkouts,
@@ -27,19 +29,30 @@ import { TodaySupplementsCard } from '../components/Supplements'
 export function FeedPage() {
   useStoreVersion()
   const { me } = useMe()
+  const [scope, setScope] = useScope(me)
   const [filter, setFilter] = useState<'alle' | UserId>('alle')
   const [limit, setLimit] = useState(20)
   const now = useNow(1000)
-  const all = doneWorkouts(filter === 'alle' ? undefined : filter)
-  const live = activeWorkouts()
+  const people = scopeUsers(me, scope)
+  const ids = new Set(people.map((u) => u.id))
+  const person = filter !== 'alle' && ids.has(filter) ? filter : 'alle'
+  const all = doneWorkouts(person === 'alle' ? undefined : person).filter((w) => inScope(w, ids, scope))
+  const live = activeWorkouts().filter((w) => ids.has(w.data.userId) && !w.data.private)
+  const groups = myGroups(me)
+  const alone = people.length <= 1
   const st = getStatus()
   return (
     <>
       <TopBar
         title="Jernlogg"
         right={
+          <span className="row" style={{ gap: 4 }}>
+          <a className="icon-btn" href="#/grupper" aria-label="Grupper" style={{ fontSize: '1.125rem', textDecoration: 'none' }}>
+            👥
+          </a>
           <span className={`sync ${st.status === 'offline' ? 'offline' : ''}`} title={st.backend === 'local' ? 'Lokal testmodus' : 'Synkronisert'}>
             <i /> {st.status === 'offline' ? `Frakoblet${st.pending ? ` · ${st.pending} venter` : ''}` : st.backend === 'local' ? 'Lokal' : 'Live'}
+          </span>
           </span>
         }
       />
@@ -60,24 +73,39 @@ export function FeedPage() {
 
         <InstallBanner />
         <TodaySupplementsCard />
-        <WeekGoals />
+        {alone ? <GroupsNudge hasGroups={groups.length > 0} /> : <WeekGoals ids={people.map((u) => u.id)} scope={scope} />}
 
-        <div className="chips" style={{ marginBottom: 12 }}>
-          <button className={`chip ${filter === 'alle' ? 'on' : ''}`} onClick={() => setFilter('alle')}>
-            Alle
-          </button>
-          {USERS.map((u) => (
-            <button key={u.id} className={`chip ${filter === u.id ? 'on' : ''}`} onClick={() => setFilter(u.id)}>
-              <span style={{ width: 8, height: 8, borderRadius: 4, background: u.color }} />
-              {u.name}
+        {groups.length > 1 && (
+          <div className="chips scroll" style={{ marginBottom: 8 }} role="group" aria-label="Vis gruppe">
+            <button className={`chip ${scope === 'alle' ? 'on' : ''}`} onClick={() => setScope('alle')}>
+              Alle grupper
             </button>
-          ))}
-        </div>
+            {groups.map((g) => (
+              <button key={g.id} className={`chip ${scope === g.id ? 'on' : ''}`} onClick={() => setScope(g.id)}>
+                {g.data.emoji ? `${g.data.emoji} ` : ''}
+                {g.data.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {!alone && (
+          <div className="chips scroll" style={{ marginBottom: 12 }} role="group" aria-label="Vis person">
+            <button className={`chip ${person === 'alle' ? 'on' : ''}`} onClick={() => setFilter('alle')}>
+              Alle
+            </button>
+            {people.map((u) => (
+              <button key={u.id} className={`chip ${person === u.id ? 'on' : ''}`} onClick={() => setFilter(u.id)}>
+                <span style={{ width: 8, height: 8, borderRadius: 4, background: u.color }} />
+                {u.id === me ? 'Meg' : u.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {all.length === 0 && (
           <div className="empty">
             <h3>Ingen økter ennå</h3>
-            <p>Økter dere fullfører dukker opp her, med PR-er og reaksjoner.</p>
+            <p>{alone ? 'Øktene dine dukker opp her, med PR-er og reaksjoner.' : 'Økter dere fullfører dukker opp her, med PR-er og reaksjoner.'}</p>
             <button className="btn primary" onClick={() => go('okt')}>
               <Icon.plus /> Start en økt
             </button>
@@ -122,6 +150,11 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
           <div className="grow">
             <div style={{ fontWeight: 700 }}>
               {u.name} <span className="muted" style={{ fontWeight: 500 }}>· {isRun ? '🏃 ' : ''}{w.data.title}</span>
+              {w.data.private && (
+                <span className="private-tag" title="Privat – bare du ser denne">
+                  🔒 Privat
+                </span>
+              )}
               {w.data.feeling ? <span style={{ marginLeft: 6 }}>{FEELINGS[w.data.feeling - 1]}</span> : null}
             </div>
             <div className="tiny muted">
@@ -160,7 +193,7 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
           </li>
         )}
       </ul>}
-      <div className="reactions">
+      {!w.data.private && <div className="reactions">
         {REACTIONS.map((e) => {
           const who = reactions.filter((r) => r.emoji === e)
           const on = who.some((r) => r.userId === me)
@@ -182,14 +215,34 @@ export function FeedItem({ w }: { w: Doc<Workout> }) {
             💬 <span className="n">{comments.length}</span>
           </button>
         )}
-      </div>
+      </div>}
     </article>
   )
 }
 
-function WeekGoals() {
-  const rows = USERS.map((u) => ({ u, p: goalProgress(u.id) }))
-  const allDone = rows.every((r) => r.p.met)
+function GroupsNudge({ hasGroups }: { hasGroups: boolean }) {
+  return (
+    <section className="card nudge" style={{ marginBottom: 12 }}>
+      <h3>{hasGroups ? 'Inviter noen til gruppa di' : 'Tren sammen med venner'}</h3>
+      <p className="small muted" style={{ margin: '4px 0 10px' }}>
+        {hasGroups
+          ? 'Del invitasjonslenken, så ser dere hverandres økter, PR-er og ukesmål.'
+          : 'Lag en gruppe eller bli med i en – da ser dere hverandres økter og kan konkurrere på topplistene.'}
+      </p>
+      <button className="btn primary" onClick={() => go('grupper')}>
+        {hasGroups ? 'Til gruppene mine' : 'Finn eller lag en gruppe'}
+      </button>
+    </section>
+  )
+}
+
+const GOAL_ROWS = 8
+function WeekGoals({ ids, scope }: { ids: string[]; scope: string }) {
+  const [more, setMore] = useState(false)
+  const all = ids.map((id) => ({ u: userById(id), p: goalProgress(id) })) // own private sessions count towards own goal
+  const rows = more ? all : all.slice(0, GOAL_ROWS)
+  const allDone = all.every((r) => r.p.met)
+  void scope
   return (
     <section className="card" style={{ marginBottom: 12, padding: '12px 16px' }}>
       <div className="spread" style={{ marginBottom: 8 }}>
@@ -238,6 +291,11 @@ function WeekGoals() {
           )
         })}
       </div>
+      {all.length > GOAL_ROWS && (
+        <button className="btn ghost small" style={{ marginTop: 6 }} onClick={() => setMore((m) => !m)}>
+          {more ? 'Vis færre' : `Vis alle ${all.length}`}
+        </button>
+      )}
       <div className="tiny muted" style={{ marginTop: 6 }}>Hel = styrke · stripet = løping</div>
     </section>
   )

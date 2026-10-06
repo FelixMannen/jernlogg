@@ -3,7 +3,7 @@ import { Sheet, Icon, confirmDialog, toast, go, useMe } from './ui'
 import { getDoc } from '../lib/store'
 import type { Workout, UserId } from '../lib/domain'
 import { exerciseById } from '../lib/stats'
-import { deleteWorkout, reopenWorkout, templateFromWorkout, updateWorkoutMeta } from '../lib/actions'
+import { deleteWorkout, reopenWorkout, templateFromWorkout, updateWorkoutMeta, setWorkoutPrivate } from '../lib/actions'
 
 export const toLocalInput = (iso: string | Date) => {
   const d = new Date(iso)
@@ -43,7 +43,7 @@ export function WorkoutActionsSheet({ id, onClose, onDeleted }: { id: string; on
     onClose()
     const ok = await confirmDialog({
       title: isRun ? 'Slette løpeturen?' : 'Slette økta?',
-      body: 'Den forsvinner fra historikken og statistikken for alle.',
+      body: w.private ? 'Den forsvinner fra historikken og statistikken din.' : 'Den forsvinner fra historikken og statistikken for alle.',
       ok: isRun ? 'Slett løpetur' : 'Slett økt',
       danger: true,
     })
@@ -84,6 +84,16 @@ export function WorkoutActionsSheet({ id, onClose, onDeleted }: { id: string; on
             </button>
           </>
         )}
+        <button
+          className="list-item"
+          onClick={() => {
+            setWorkoutPrivate(id, !w.private)
+            toast(w.private ? 'Synlig for gruppene dine igjen' : 'Privat – bare du ser den nå')
+            onClose()
+          }}
+        >
+          {w.private ? '👥 Vis for gruppene mine' : '🔒 Gjør privat'}
+        </button>
         <button className="list-item" style={{ color: '#ff8a80' }} onClick={del}>
           <Icon.trash /> {isRun ? 'Slett løpeturen' : 'Slett økta'}
         </button>

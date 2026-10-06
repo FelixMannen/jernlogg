@@ -71,9 +71,11 @@ try {
       }
     })
   }
-  await shot('picker')
-  await step('pick user', async () => {
-    await page.getByRole('button', { name: /Felix/ }).click()
+  await shot('login')
+  await step('log in (e-postkode)', async () => {
+    await page.getByLabel('E-post').fill('felix@test.no')
+    await page.getByRole('button', { name: 'Send meg en kode' }).click()
+    await page.getByLabel('Kode fra e-posten').fill('123456')
     await page.waitForSelector('.nav')
   })
   await shot('feed')

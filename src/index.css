@@ -1593,3 +1593,231 @@ textarea.input {
 .supp-day:disabled {
   cursor: default;
 }
+
+/* ---------- login / onboarding ---------- */
+.auth {
+  min-height: var(--vv-h, 100dvh);
+}
+.kb-open .auth {
+  justify-content: flex-start;
+  padding-top: 12px;
+}
+/* while typing on a phone: drop the big logo and intro so the button stays above the keyboard */
+.kb-open .auth > h1,
+.kb-open .auth > p.muted {
+  display: none;
+}
+.auth.onboarding {
+  justify-content: flex-start;
+  padding-top: 40px;
+}
+.input.big {
+  min-height: 56px;
+  font-size: 1.125rem;
+}
+.code-input {
+  font-size: 1.75rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, #000 20%, transparent);
+  flex: none;
+}
+.swatch.on {
+  outline: 3px solid var(--chalk);
+  outline-offset: 2px;
+}
+.swatch.text {
+  background: var(--floor-2);
+  border: 1px solid var(--seam);
+  box-shadow: none;
+  font-size: 1.125rem;
+  display: grid;
+  place-items: center;
+  color: var(--chalk-2);
+}
+.swatch.text.on {
+  background: var(--rubber-2);
+  border-color: var(--chalk);
+  outline: none;
+}
+.plate-letter.emoji {
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+}
+.plate-letter.lg.emoji {
+  font-size: 2.25rem;
+}
+.plate-letter.sm.emoji {
+  font-size: 0.875rem;
+}
+
+/* checkbox rows (private workout, public group …) */
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-m);
+  background: var(--floor-2);
+  border: 1px solid var(--seam);
+  cursor: pointer;
+}
+.switch-row input {
+  appearance: none;
+  flex: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--seam);
+  position: relative;
+  margin: 0;
+  transition: background 0.15s;
+}
+.switch-row input::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--chalk);
+  transition: transform 0.15s;
+}
+.switch-row input:checked {
+  background: var(--me);
+}
+.switch-row input:checked::after {
+  transform: translateX(18px);
+}
+.switch-row input:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 2px;
+}
+.private-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--chalk-2);
+  background: var(--rubber-2);
+  vertical-align: 2px;
+}
+.nudge {
+  border: 1px dashed var(--seam);
+  background: color-mix(in srgb, var(--me) 7%, var(--rubber));
+}
+.list-item.danger {
+  color: #ff8a80;
+}
+.list-item.on {
+  background: var(--rubber-2);
+}
+.list.flush {
+  background: transparent;
+  margin: 0 -16px;
+  border-radius: 0;
+}
+.list.flush .list-item {
+  min-height: 52px;
+}
+
+/* ---------- groups ---------- */
+.group-emoji {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--floor-2);
+  display: grid;
+  place-items: center;
+  font-size: 1.375rem;
+  flex: none;
+}
+.group-emoji.big {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 2.125rem;
+}
+.group-emoji.sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+.group-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.join-card {
+  align-items: center;
+  text-align: center;
+}
+.join-card h1 {
+  font-size: 2rem;
+}
+.qr {
+  display: block;
+  width: min(240px, 70vw);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+.goal-track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--floor-2);
+  overflow: hidden;
+}
+.goal-track i {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--me);
+  transition: width 0.4s;
+}
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  margin-right: 2px;
+}
+.week-row {
+  display: grid;
+  grid-template-columns: 26px 1fr 28px 64px 44px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  text-align: left;
+}
+.week-row .num {
+  text-align: right;
+}
+.group-row.mine .lb-rank {
+  color: var(--me);
+}
+.prose ul {
+  padding-left: 18px;
+  margin: 0;
+}
+.prose li + li {
+  margin-top: 6px;
+}
+a.btn {
+  text-decoration: none;
+}
