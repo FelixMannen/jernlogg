@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Sheet, Icon, toast, confirmDialog, useMe, go, TopBar, vibrate } from './ui'
-import { useStoreVersion } from '../lib/store'
+import { useStoreVersion, type Doc } from '../lib/store'
+import { userById } from '../lib/users'
 import type { UserId } from '../lib/domain'
 import {
   supplements,
@@ -18,13 +19,92 @@ import {
   deleteSupplement,
   togglePauseSupplement,
   refill,
-  setRefillDate,
   pausedNow,
+  takenAt,
   UNITS,
   type Supplement,
 } from '../lib/supplements'
 
 const hh = (h: number) => `${String(h).padStart(2, '0')}:00`
+const clock = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '')
+
+/** Ticked off in this app session (so the feed card can show «Tatt ✓ / Angre» right after tapping). */
+const recentlyTaken = new Set<string>()
+
+/* ---------- one-dose supplements: big «Tatt» button that bursts, then shows «Tatt ✓ kl. 08:12» with undo ---------- */
+export function TakeButton({ sup, compact }: { sup: Doc<Supplement>; compact?: boolean }) {
+  const { me } = useMe()
+  const today = dayKey()
+  const taken = isTaken(sup.id, today, 0)
+  const [burst, setBurst] = useState(0)
+  const [popping, setPopping] = useState(false)
+  const timer = useRef<any>(null)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const color = userById(me).color
+  const take = () => {
+    setTaken(sup, today, 0, true)
+    recentlyTaken.add(sup.id)
+    vibrate([18, 40, 60])
+    setBurst((b) => b + 1)
+    setPopping(true)
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setPopping(false), 650)
+  }
+  const undo = () => {
+    setTaken(sup, today, 0, false)
+    recentlyTaken.delete(sup.id)
+    toast(`${sup.data.name}: angret`)
+  }
+  return (
+    <div className={`take ${compact ? 'compact' : ''} ${taken ? 'done' : ''} ${popping ? 'pop' : ''}`} style={{ ['--c' as any]: color }}>
+      {burst > 0 && <Burst key={burst} colors={[color, '#f2c14e', '#eceae4', '#4fbf7a']} />}
+      {taken ? (
+        <div className="take-done" role="status">
+          <span className="take-check" aria-hidden>
+            <Icon.check />
+          </span>
+          <span className="grow">
+            <b>{sup.data.name} tatt ✓</b>
+            <span className="tiny muted" style={{ display: 'block' }}>
+              kl. {clock(takenAt(sup.id, today, 0))}
+              {doseLabel(sup.data) ? ` · ${doseLabel(sup.data)}` : ''}
+            </span>
+          </span>
+          <button className="btn small ghost" onClick={undo} aria-label={`Angre ${sup.data.name}`}>
+            Angre
+          </button>
+        </div>
+      ) : (
+        <button className="take-btn" onClick={take} aria-label={`${sup.data.name}: tatt`}>
+          <span className="take-label">Tatt</span>
+          <span className="take-sub">
+            {sup.data.name}
+            {doseLabel(sup.data) ? ` · ${doseLabel(sup.data)}` : ''}
+          </span>
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Burst({ colors }: { colors: string[] }) {
+  const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  const parts = useRef(
+    Array.from({ length: reduce ? 0 : 22 }, (_, i) => {
+      const a = (i / 22) * Math.PI * 2 + Math.random() * 0.4
+      const d = 60 + Math.random() * 70
+      return { dx: Math.cos(a) * d, dy: Math.sin(a) * d * 0.7, c: colors[i % colors.length], s: 5 + Math.random() * 6, r: Math.random() * 360 }
+    }),
+  ).current
+  return (
+    <span className="burst" aria-hidden>
+      <span className="burst-ring" />
+      {parts.map((p, i) => (
+        <i key={i} style={{ ['--dx' as any]: `${p.dx}px`, ['--dy' as any]: `${p.dy}px`, ['--r' as any]: `${p.r}deg`, background: p.c, width: p.s, height: p.s }} />
+      ))}
+    </span>
+  )
+}
 const SUGGESTIONS: { name: string; amount: number; unit: string }[] = [
   { name: 'Kreatin', amount: 5, unit: 'g' },
   { name: 'Proteinpulver', amount: 30, unit: 'g' },
@@ -71,7 +151,8 @@ export function SupplementsSection() {
                 <Icon.chevron />
               </span>
             </button>
-            {!paused && (
+            {!paused && s.data.doses.length === 1 && <TakeButton sup={s} compact />}
+            {!paused && s.data.doses.length > 1 && (
               <div className="supp-doses">
                 {s.data.doses.map((d, i) => {
                   const on = isTaken(s.id, today, i)
@@ -127,7 +208,6 @@ function SupplementEditor({ id, onClose }: { id?: string; onClose: () => void })
   const [unit, setUnit] = useState(cur?.unit ?? 'g')
   const [hours, setHours] = useState<number[]>(cur?.doses.map((d) => d.hour) ?? [8])
   const [stock, setStock] = useState(cur?.stock ? String(cur.stock.total).replace('.', ',') : '')
-  const [since, setSince] = useState(cur?.stock?.refillAt ?? dayKey())
   const amt = parseFloat(amount.replace(',', '.'))
   const total = parseFloat(stock.replace(',', '.'))
   const valid = name.trim() && hours.length > 0
@@ -201,15 +281,10 @@ function SupplementEditor({ id, onClose }: { id?: string; onClose: () => void })
         </div>
 
         <label className="field">
-          <span>Lager (valgfritt): hvor mye var i boksen da du begynte på den, i {unit}?</span>
+          <span>Lager (valgfritt): hvor mye er i boksen, i {unit}?</span>
           <input className="input num" inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder={unit === 'g' ? 'f.eks. 500' : 'f.eks. 120'} />
         </label>
-        {stock && (
-          <label className="field">
-            <span>Begynte på boksen (alle doser fra og med denne dagen trekkes fra)</span>
-            <input className="input" type="date" value={since} max={dayKey()} onChange={(e) => setSince(e.target.value || dayKey())} />
-          </label>
-        )}
+        {stock && <p className="tiny muted" style={{ margin: 0 }}>Appen trekker fra mengden per dose for hver gang du har krysset av (også dager du krysser av bakover).</p>}
         {stock && !(amt > 0) && <p className="tiny" style={{ color: 'var(--gold)', margin: 0 }}>Fyll inn mengde per dose for å få lagerteller.</p>}
 
         <button
@@ -224,7 +299,8 @@ function SupplementEditor({ id, onClose }: { id?: string; onClose: () => void })
               amount: amt > 0 ? amt : undefined,
               unit,
               doses: sorted.map((hour) => ({ hour })),
-              stock: total > 0 ? { total, refillAt: since } : undefined,
+              // first box (or a new amount for it): counts every dose ticked off; «Ny boks» later counts from that day
+              stock: total > 0 ? { total, refillAt: cur?.stock?.refillAt ?? dayKey(), ...(cur?.stock?.newBox ? { newBox: true } : {}) } : undefined,
               createdAt: cur?.createdAt ?? dayKey(),
             }
             saveSupplement(s, id)
@@ -277,11 +353,7 @@ function SupplementDetail({ id, onClose, onEdit }: { id: string; onClose: () => 
         </div>
 
         {yStatus !== 'full' && yStatus !== 'paused' && (
-          <button className="btn block" onClick={() => {
-              setDayTaken(sup, yesterday, true)
-              if (s.stock && yesterday < s.stock.refillAt) toast('Registrert for i går', undefined, { label: 'Trekk fra boksen', run: () => setRefillDate(sup, yesterday) })
-              else toast('Registrert for i går')
-            }}>
+          <button className="btn block" onClick={() => (setDayTaken(sup, yesterday, true), toast('Registrert for i går'))}>
             Tok den i går
           </button>
         )}
@@ -303,16 +375,7 @@ function SupplementDetail({ id, onClose, onEdit }: { id: string; onClose: () => 
                   disabled={!editable}
                   title={d}
                   aria-label={`${d}: ${st}`}
-                  onClick={() => {
-                    const taking = st !== 'full'
-                    setDayTaken(sup, d, taking)
-                    // ticked off a day before the current box was registered: offer to count it from that box
-                    if (taking && s.stock && d < s.stock.refillAt)
-                      toast(`Registrert ${parseInt(d.slice(8), 10)}.`, undefined, {
-                        label: 'Trekk fra boksen',
-                        run: () => setRefillDate(sup, d),
-                      })
-                  }}
+                  onClick={() => setDayTaken(sup, d, st !== 'full')}
                 >
                   {parseInt(d.slice(8), 10)}
                 </button>
@@ -321,7 +384,6 @@ function SupplementDetail({ id, onClose, onEdit }: { id: string; onClose: () => 
           </div>
           <div className="tiny muted" style={{ marginTop: 6 }}>
             Trykk på en dag for å krysse av eller fjerne. Grønn = alt tatt, gul = delvis, grå = pause.
-            {s.stock ? ` Lageret teller doser fra ${parseInt(s.stock.refillAt.slice(8), 10)}.${s.stock.refillAt.slice(5, 7)} (endres under «Rediger»).` : ''}
           </div>
         </div>
 
@@ -385,37 +447,46 @@ function SupplementDetail({ id, onClose, onEdit }: { id: string; onClose: () => 
 export function TodaySupplementsCard() {
   useStoreVersion()
   const { me } = useMe()
-  const pending = pendingToday(me)
-  if (!pending.length) return null
   const today = dayKey()
+  const pending = pendingToday(me)
+  const singles = supplements(me).filter((s) => s.data.doses.length === 1 && !pausedNow(s.data) && (!isTaken(s.id, today, 0) || recentlyTaken.has(s.id)))
+  const multi = pending.filter((p) => p.sup.data.doses.length > 1)
+  if (!singles.length && !multi.length) return null
   return (
     <section className="card supp-today" aria-label="Supplementer i dag">
-      <div className="spread" style={{ marginBottom: 6 }}>
+      <div className="spread" style={{ marginBottom: 8 }}>
         <h3>💊 I dag</h3>
         <button className="tiny muted" onClick={() => go('profil')}>
           Endre
         </button>
       </div>
-      <div className="supp-doses">
-        {pending.map(({ sup, dose, hour }) => (
-          <button
-            key={`${sup.id}-${dose}`}
-            className="supp-dose"
-            onClick={() => {
-              setTaken(sup, today, dose, true)
-              vibrate(20)
-              toast(`${sup.data.name} er krysset av`)
-            }}
-            aria-label={`Kryss av ${sup.data.name} ${hh(hour)}`}
-          >
-            <span className="supp-box" />
-            {sup.data.name}
-            <span className="tiny">
-              {doseLabel(sup.data)} · {hh(hour)}
-            </span>
-          </button>
+      <div className="stack" style={{ gap: 8 }}>
+        {singles.map((s) => (
+          <TakeButton key={s.id} sup={s} />
         ))}
       </div>
+      {multi.length > 0 && (
+        <div className="supp-doses" style={{ marginTop: singles.length ? 10 : 0 }}>
+          {multi.map(({ sup, dose, hour }) => (
+            <button
+              key={`${sup.id}-${dose}`}
+              className="supp-dose"
+              onClick={() => {
+                setTaken(sup, today, dose, true)
+                vibrate(20)
+                toast(`${sup.data.name} er krysset av`)
+              }}
+              aria-label={`Kryss av ${sup.data.name} ${hh(hour)}`}
+            >
+              <span className="supp-box" />
+              {sup.data.name}
+              <span className="tiny">
+                {doseLabel(sup.data)} · {hh(hour)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -447,6 +518,9 @@ export function SupplementsTodayPage() {
                   {doseLabel(s.data)} · {streak(s)} 🔥
                 </span>
               </div>
+              {s.data.doses.length === 1 ? (
+                <TakeButton sup={s} />
+              ) : (
               <div className="supp-doses">
                 {s.data.doses.map((d, i) => {
                   const on = isTaken(s.id, today, i)
@@ -459,6 +533,7 @@ export function SupplementsTodayPage() {
                   )
                 })}
               </div>
+              )}
             </div>
           ),
         )}

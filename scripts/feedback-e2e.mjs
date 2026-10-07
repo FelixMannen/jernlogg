@@ -55,6 +55,18 @@ async function addExercise(q) {
   await page.getByRole('button', { name: /Legg til 1 øvelse/ }).click()
 }
 
+await t('varsel i appen når det er lenge siden sist', async () => {
+  await page.goto(base + '#/feed')
+  const r = page.getByRole('status', { name: 'Påminnelse om trening' })
+  await r.getByText('Det er 3 dager siden sist – på tide med en økt?').waitFor()
+  await shot('reminder')
+  await r.getByRole('button', { name: 'Ikke i dag' }).click()
+  await page.reload()
+  await page.locator('.nav').waitFor()
+  if (await page.getByRole('status', { name: 'Påminnelse om trening' }).count()) throw new Error('should stay hidden today')
+  await page.evaluate(() => localStorage.removeItem('jernlogg.comebackHidden'))
+})
+
 await t('ny øvelse: kg og reps i sett 1 vises svakt i settene under', async () => {
   await page.goto(base + '#/okt')
   await page.locator('.kind-tile', { hasText: 'Styrke' }).click()
@@ -104,7 +116,7 @@ await t('benk med historikk: svake tall fra forrige økt + «Hent kg og reps fra
   await page.getByRole('alertdialog').getByRole('button', { name: 'Forkast' }).click()
 })
 
-await t('kreatin: avkrysning før boksen ble registrert kan trekkes fra lageret', async () => {
+await t('kreatin: lager = boks − 5 g × hver gang tatt (også dager krysset av bakover)', async () => {
   await page.goto(base + '#/profil')
   await page.locator('#supplementer').getByRole('button', { name: 'Legg til' }).click()
   await page.locator('.sheet').getByRole('button', { name: 'Kreatin', exact: true }).click()
@@ -112,23 +124,35 @@ await t('kreatin: avkrysning før boksen ble registrert kan trekkes fra lageret'
   await page.locator('.sheet').getByRole('button', { name: 'Lagre' }).click()
   await page.locator('#supplementer').getByText('50 g igjen').waitFor()
   await page.locator('#supplementer .supp-head').first().click()
-  const d = await page.evaluate(() => {
-    const x = new Date(Date.now() - 3 * 86400e3)
+  const day = (n) => page.evaluate((n) => {
+    const x = new Date(Date.now() - n * 86400e3)
     return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
-  })
-  await page.getByRole('button', { name: `${d}: before` }).click()
-  await page.getByRole('button', { name: 'Trekk fra boksen' }).click()
-  await page.getByText(/45 g igjen av 50/).waitFor()
+  }, n)
+  await page.getByRole('button', { name: `${await day(3)}: before` }).click()
+  await page.getByRole('button', { name: `${await day(2)}: before` }).click()
+  await page.getByText(/40 g igjen av 50/).waitFor()
   await shot('stock')
   await page.getByRole('button', { name: 'Lukk' }).click()
 })
 
-await t('kreatin: startdato for boksen i redigering', async () => {
-  const sup = await page.evaluate(() => window.__jernlogg.allDocs().find((x) => x.collection === 'supplements' && !x.deleted))
-  if (!sup?.data.stock?.refillAt) throw new Error('no stock')
-  await page.locator('#supplementer .supp-head').first().click()
-  await page.locator('.sheet').getByRole('button', { name: /Rediger/ }).first().click()
-  await page.locator('.sheet input[type=date]').waitFor()
+await t('stor «Tatt»-knapp: eksploderer, viser «Tatt ✓ kl.» og kan angres', async () => {
+  await page.goto(base + '#/feed')
+  const card = page.getByRole('region', { name: 'Supplementer i dag' })
+  await card.getByRole('button', { name: 'Kreatin: tatt' }).click()
+  if (!(await card.locator('.burst i').count())) throw new Error('no burst animation')
+  await card.getByText('Kreatin tatt ✓').waitFor()
+  await card.getByText(/kl\. \d\d:\d\d/).waitFor()
+  await shot('taken')
+  const logs = await page.evaluate(() => window.__jernlogg.allDocs().filter((d) => d.collection === 'supplement_logs' && !d.deleted).length)
+  if (logs !== 3) throw new Error('logs: ' + logs)
+  await card.getByRole('button', { name: 'Angre Kreatin' }).click()
+  await card.getByRole('button', { name: 'Kreatin: tatt' }).waitFor()
+  const after = await page.evaluate(() => window.__jernlogg.allDocs().filter((d) => d.collection === 'supplement_logs' && !d.deleted).length)
+  if (after !== 2) throw new Error('undo failed: ' + after)
+  await card.getByRole('button', { name: 'Kreatin: tatt' }).click()
+  await page.goto(base + '#/profil')
+  await page.locator('#supplementer').getByText('Kreatin tatt ✓').waitFor()
+  await page.locator('#supplementer').getByText('35 g igjen').waitFor()
 })
 
 await t('invitasjon: lim inn lenke eller kode i appen', async () => {

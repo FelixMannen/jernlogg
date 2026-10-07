@@ -33,7 +33,9 @@ export function decideSupplements(now, users, { subs, profiles, supplements, sup
         items.push({ supId: sup.id, name: s.name, dose: i, date, logId, label: [amountLabel(s), (s.doses.length > 1 ? hh(d.hour) : '')].filter(Boolean).join(' · ') })
       })
       if (s.stock && s.amount && s.doses && s.doses.length) {
-        const used = supLogs.filter((l) => l.data.supId === sup.id && l.data.date >= s.stock.refillAt).length
+        // first box: every dose ever ticked off counts; after «Ny boks»: only from that day (same rule as the app)
+        const from = s.stock.newBox || s.stock.refillAt > s.createdAt ? s.stock.refillAt : null
+        const used = supLogs.filter((l) => l.data.supId === sup.id && (!from || l.data.date >= from)).length
         const left = Math.max(0, s.stock.total - used * s.amount)
         const daysLeft = Math.floor(left / (s.amount * s.doses.length))
         const logId = `stock:${sup.id}:${s.stock.refillAt}`

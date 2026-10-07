@@ -21,7 +21,9 @@ import {
 import { toggleReaction, reactionsFor, commentsFor } from '../lib/actions'
 import { InstallGuide } from '../components/Notifications'
 import { WorkoutMenuButton } from '../components/WorkoutActions'
-import { goalProgress } from '../lib/runs'
+import { goalProgress, goalRemainingText } from '../lib/runs'
+import { notifyPrefs } from '../lib/push'
+import { activeWorkout } from '../lib/stats'
 import { stopwatchElapsed } from '../lib/actions'
 import { RunFeedBody } from './RunFeed'
 import { TodaySupplementsCard } from '../components/Supplements'
@@ -71,6 +73,7 @@ export function FeedPage() {
           )
         })}
 
+        <ComebackReminder />
         <InstallBanner />
         <TodaySupplementsCard />
         {alone ? <GroupsNudge hasGroups={groups.length > 0} /> : <WeekGoals ids={people.map((u) => u.id)} scope={scope} />}
@@ -322,5 +325,58 @@ function InstallBanner() {
         }}
       />
     </div>
+  )
+}
+
+const ymdLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+function calDays(a: Date, b: Date) {
+  const x = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime()
+  const y = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime()
+  return Math.round((x - y) / 86400000)
+}
+
+/** Same rule as the push reminder: «days since last workout» ≥ the threshold in Varsler (default 2). */
+function ComebackReminder() {
+  const { me } = useMe()
+  const today = ymdLocal(new Date())
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem('jernlogg.comebackHidden') === today
+    } catch {
+      return false
+    }
+  })
+  if (dismissed || activeWorkout(me)) return null
+  const last = doneWorkouts(me)[0] // own workouts, private ones included
+  const days = last ? calDays(new Date(), new Date(last.data.startedAt)) : Infinity
+  const threshold = notifyPrefs(me).days
+  if (days < threshold) return null
+  const left = goalRemainingText(me)
+  return (
+    <section className="card nudge-reminder" style={{ marginBottom: 12 }} role="status" aria-label="Påminnelse om trening">
+      <span style={{ fontSize: '1.75rem' }} aria-hidden>
+        ⏰
+      </span>
+      <div className="grow">
+        <b>{last ? `Det er ${days} dager siden sist – på tide med en økt?` : 'Første økt venter – på tide å starte?'}</b>
+        {left && <div className="tiny muted">{left} på ukesmålet.</div>}
+        <div className="row" style={{ gap: 8, marginTop: 8 }}>
+          <button className="btn small primary" onClick={() => go('okt')}>
+            Start økt
+          </button>
+          <button
+            className="btn small ghost"
+            onClick={() => {
+              try {
+                localStorage.setItem('jernlogg.comebackHidden', today)
+              } catch {}
+              setDismissed(true)
+            }}
+          >
+            Ikke i dag
+          </button>
+        </div>
+      </div>
+    </section>
   )
 }

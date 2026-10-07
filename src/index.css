@@ -1840,3 +1840,152 @@ a.btn {
 .fetch-prev:active {
   background: var(--rubber-2);
 }
+
+/* ---------- one-dose supplements: big «Tatt» ---------- */
+.take {
+  position: relative;
+}
+.take-btn {
+  width: 100%;
+  min-height: 72px;
+  border-radius: var(--radius-l);
+  background: var(--c, var(--me));
+  color: #111;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-shadow: inset 0 -4px 0 color-mix(in srgb, #000 22%, var(--c, var(--me)));
+  transition: transform 0.08s;
+}
+.take-btn:active {
+  transform: scale(0.97);
+}
+.take-label {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 1.75rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+.take-sub {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.take.compact .take-btn {
+  min-height: 56px;
+}
+.take.compact .take-label {
+  font-size: 1.375rem;
+}
+.take-done {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 8px 8px 12px;
+  border-radius: var(--radius-l);
+  background: color-mix(in srgb, var(--good) 14%, var(--floor-2));
+  border: 1px solid color-mix(in srgb, var(--good) 40%, transparent);
+}
+.take-check {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--good);
+  color: #0d2416;
+  flex: none;
+}
+.take-check svg {
+  width: 20px;
+  height: 20px;
+}
+.take.pop .take-done {
+  animation: take-pop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.take.pop .take-check {
+  animation: take-check 0.6s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+@keyframes take-pop {
+  0% {
+    transform: scale(0.85);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes take-check {
+  0% {
+    transform: scale(0) rotate(-40deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+.burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.burst i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  animation: burst 0.75s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+.burst-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 3px solid var(--good);
+  animation: burst-ring 0.6s ease-out forwards;
+}
+@keyframes burst {
+  0% {
+    transform: translate(-50%, -50%) scale(1) rotate(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.4) rotate(var(--r));
+    opacity: 0;
+  }
+}
+@keyframes burst-ring {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .take.pop .take-done,
+  .take.pop .take-check,
+  .burst-ring {
+    animation: none;
+  }
+}
+/* in-app reminder */
+.nudge-reminder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  background: color-mix(in srgb, var(--gold) 10%, var(--rubber));
+}

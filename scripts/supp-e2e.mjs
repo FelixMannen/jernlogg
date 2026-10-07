@@ -52,7 +52,7 @@ await t('legg til kreatin med lager', async () => {
   await page.locator('.sheet label:has-text("Lager") input').fill('50')
   await shot('editor')
   await page.locator('.sheet').getByRole('button', { name: 'Lagre' }).click()
-  await page.locator('#supplementer').getByText('Kreatin').waitFor()
+  await page.locator('#supplementer .supp-head', { hasText: 'Kreatin' }).waitFor()
   await page.locator('#supplementer').getByText('50 g igjen').waitFor()
 })
 
@@ -60,15 +60,19 @@ await t('kryss av i feeden', async () => {
   await page.goto(base + '#/feed')
   await page.getByRole('region', { name: 'Supplementer i dag' }).waitFor()
   await shot('feed-card')
-  await page.getByRole('button', { name: /Kryss av Kreatin/ }).click()
+  await page.getByRole('button', { name: 'Kreatin: tatt' }).click()
   if ((await logs()).length !== 1) throw new Error('no log')
+  await page.getByRole('region', { name: 'Supplementer i dag' }).getByText('Kreatin tatt ✓').waitFor()
+  // next app start: the card is gone when everything is taken
+  await page.reload()
+  await page.locator('.nav').waitFor()
   if (await page.getByRole('region', { name: 'Supplementer i dag' }).count()) throw new Error('card should hide when all taken')
 })
 
 await t('profil: tatt, streak 1, lager 45 g', async () => {
   await page.goto(base + '#/profil')
   const sec = page.locator('#supplementer')
-  await sec.getByRole('button', { name: /Kreatin 08:00 tatt/ }).waitFor()
+  await sec.getByText('Kreatin tatt ✓').waitFor()
   await sec.getByText('1 🔥').waitFor()
   await sec.getByText('45 g igjen').waitFor()
 })
@@ -82,9 +86,10 @@ await t('tok den i går → streak 2, kalender', async () => {
 })
 
 await t('angre i dag via knappen', async () => {
-  await page.locator('#supplementer').getByRole('button', { name: /Kreatin 08:00 tatt/ }).click()
-  await page.locator('#supplementer').getByRole('button', { name: /Kreatin 08:00 ikke tatt/ }).waitFor()
-  await page.locator('#supplementer').getByRole('button', { name: /Kreatin 08:00 ikke tatt/ }).click()
+  await page.locator('#supplementer').getByRole('button', { name: 'Angre Kreatin' }).click()
+  await page.locator('#supplementer').getByRole('button', { name: 'Kreatin: tatt' }).waitFor()
+  await page.locator('#supplementer').getByRole('button', { name: 'Kreatin: tatt' }).click()
+  await page.locator('#supplementer').getByText('Kreatin tatt ✓').waitFor()
 })
 
 await t('omega-3 med to doser', async () => {

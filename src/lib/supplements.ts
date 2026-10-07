@@ -8,7 +8,7 @@ export type Supplement = {
   amount?: number // per dose
   unit?: string // g, mg, kapsler, stk, ml
   doses: { hour: number }[] // one entry per dose per day
-  stock?: { total: number; refillAt: string } // total in the same unit as amount, counted from refillAt (yyyy-mm-dd)
+  stock?: { total: number; refillAt: string; newBox?: boolean } // total in the same unit as amount; newBox = set via «Ny boks» (count from refillAt)
   pauses?: { from: string; to?: string }[] // yyyy-mm-dd, to = exclusive
   stockWarnDays?: number
   createdAt: string // yyyy-mm-dd
@@ -37,6 +37,10 @@ export const logId = (supId: string, date: string, dose: number) => `sl:${supId}
 
 export function isTaken(supId: string, date: string, dose: number): boolean {
   return !!getDoc<SuppLog>(logId(supId, date, dose))
+}
+
+export function takenAt(supId: string, date: string, dose: number): string | null {
+  return getDoc<SuppLog>(logId(supId, date, dose))?.data.at ?? null
 }
 
 export function setTaken(sup: Doc<Supplement>, date: string, dose: number, taken: boolean) {
@@ -92,12 +96,20 @@ export function streak(sup: Doc<Supplement>): number {
   return n
 }
 
-export function stockInfo(sup: Doc<Supplement>): { left: number; daysLeft: number } | null {
+/** Doses that come out of the current box: every dose ever ticked off for the first box (also days ticked
+ *  backwards in the calendar), and for a later «Ny boks» only doses from that day on. */
+export function countsFromDate(s: Supplement): string | null {
+  if (!s.stock) return null
+  return s.stock.newBox || s.stock.refillAt > s.createdAt ? s.stock.refillAt : null
+}
+
+export function stockInfo(sup: Doc<Supplement>): { left: number; daysLeft: number; taken: number } | null {
   const s = sup.data
   if (!s.stock || !s.amount || !s.doses.length) return null
-  const taken = list<SuppLog>('supplement_logs').filter((l) => l.data.supId === sup.id && l.data.date >= s.stock!.refillAt).length
+  const from = countsFromDate(s)
+  const taken = list<SuppLog>('supplement_logs').filter((l) => l.data.supId === sup.id && (!from || l.data.date >= from)).length
   const left = Math.max(0, s.stock.total - taken * s.amount)
-  return { left, daysLeft: Math.floor(left / (s.amount * s.doses.length)) }
+  return { left, daysLeft: Math.floor(left / (s.amount * s.doses.length)), taken }
 }
 
 /** Doses not yet taken today, across all active supplements for a user. */
@@ -130,11 +142,6 @@ export function togglePauseSupplement(sup: Doc<Supplement>) {
   } else pauses.push({ from: today })
   put('supplements', sup.id, { ...sup.data, pauses })
 }
-/** Count doses from an earlier day (the box was started before it was registered in the app). */
-export function setRefillDate(sup: Doc<Supplement>, date: string) {
-  if (!sup.data.stock) return
-  put('supplements', sup.id, { ...sup.data, stock: { ...sup.data.stock, refillAt: date } })
-}
 export function refill(sup: Doc<Supplement>, total: number) {
-  put('supplements', sup.id, { ...sup.data, stock: { total, refillAt: dayKey() } })
+  put('supplements', sup.id, { ...sup.data, stock: { total, refillAt: dayKey(), newBox: true } })
 }

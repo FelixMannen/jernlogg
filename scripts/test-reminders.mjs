@@ -96,6 +96,16 @@ ok('supp: paused → nothing', s1.length === 0)
 const logs6 = Array.from({ length: 6 }, (_, i) => ({ id: `sl:sup1:2026-10-0${i + 1}:0`, data: { supId: 'sup1', date: `2026-10-0${i + 1}` } }))
 s1 = decideSupplements(now, USERS, { ...base, supplements: [kreatin], supLogs: logs6 })
 ok('supp: low stock (50 g − 6×5 g = 20 g → 4 days)', s1[0]?.stock[0]?.daysLeft === 4, JSON.stringify(s1[0]?.stock))
+{
+  // first box: days ticked off backwards (before the supplement/box was registered) also count
+  const kr = { ...kreatin, data: { ...kreatin.data, createdAt: '2026-10-04', stock: { total: 50, refillAt: '2026-10-04' } } }
+  let x = decideSupplements(now, USERS, { ...base, supplements: [kr], supLogs: logs6 })
+  ok('supp: first box counts every dose taken (backfilled too)', x[0]?.stock[0]?.daysLeft === 4, JSON.stringify(x[0]?.stock))
+  // «Ny boks»: only doses from that day
+  const nb = { ...kreatin, data: { ...kreatin.data, stock: { total: 50, refillAt: '2026-10-05', newBox: true } } }
+  x = decideSupplements(now, USERS, { ...base, supplements: [nb], supLogs: logs6 })
+  ok('supp: new box counts from its day', !x[0]?.stock?.length, JSON.stringify(x[0]?.stock))
+}
 s1 = decideSupplements(now, USERS, { ...base, supplements: [kreatin], supLogs: [] })
 const train = { userId: 'felix', logId: 'reminder:felix:2026-10-07', payload: { title: 'Du burde trene i dag 💪', body: '3 dager siden sist.', url: '/#/okt', tag: 'reminder' } }
 let pl = buildPayload(train, s1[0])

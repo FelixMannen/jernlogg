@@ -150,3 +150,8 @@
 - Supplementer: lageret har en startdato («Begynte på boksen»). Krysser du av dager før boksen ble registrert, kan du trykke «Trekk fra boksen» så de teller med
 - Invitasjoner: iPhone åpner lenker i Safari i stedet for appen på hjem-skjermen – innloggingssiden tilbyr nå «Kopier lenken», og under Grupper kan du lime inn (eller trykke «Lim inn») invitasjoner og koblingslenker
 - Ny test: `scripts/feedback-e2e.mjs`
+
+## Runde 23 – supplementer på nytt + varsel i appen
+- Klage på lager-løsningen: lageret regnes nå enkelt som boks − mengde × antall ganger tatt (alle avkrysninger, også dager krysset av bakover). Startdato-feltet og «Trekk fra boksen» er fjernet. «Ny boks» teller fra den dagen
+- Supplementer med én dose: stor «Tatt»-knapp som eksploderer (partikler + vibrasjon) og blir til «Tatt ✓ kl. 08:12» med «Angre». Flere doser beholder avkrysningene
+- Varsel i appen: «Det er 4 dager siden sist – på tide med en økt?» øverst i feeden, samme terskel som push-påminnelsen (Varsler → «dager uten trening»), med «Start økt» og «Ikke i dag»
