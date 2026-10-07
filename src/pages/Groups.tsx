@@ -47,7 +47,6 @@ export function GroupsPage() {
   const { me } = useMe()
   const mine = myGroups(me)
   const [creating, setCreating] = useState(false)
-  const [code, setCode] = useState('')
   const [pub, setPub] = useState<GroupPreview[] | null>(null)
   const [pubErr, setPubErr] = useState('')
   const online = getStatus().status !== 'offline'
@@ -57,11 +56,6 @@ export function GroupsPage() {
       .then(setPub)
       .catch((e) => setPubErr(e.message))
   }, [mine.length])
-
-  const codeFrom = (s: string) => {
-    const m = /bli-med\/([^/?#\s]+)/.exec(s)
-    return (m ? m[1] : s).trim()
-  }
 
   return (
     <>
@@ -103,23 +97,7 @@ export function GroupsPage() {
           <Icon.plus /> Lag ny gruppe
         </button>
 
-        <section className="card stack">
-          <h2>Har du fått en invitasjon?</h2>
-          <form
-            className="row"
-            style={{ gap: 8 }}
-            onSubmit={(e) => {
-              e.preventDefault()
-              const c = codeFrom(code)
-              if (c) go(`bli-med/${c}`)
-            }}
-          >
-            <input className="input grow" placeholder="Lim inn lenke eller kode" value={code} onChange={(e) => setCode(e.target.value)} autoCapitalize="none" aria-label="Invitasjonslenke eller kode" />
-            <button className="btn" type="submit" disabled={!codeFrom(code)}>
-              Åpne
-            </button>
-          </form>
-        </section>
+        <InvitePaste />
 
         <section className="stack" style={{ gap: 8 }}>
           <div className="section-title spread">
@@ -154,6 +132,64 @@ export function GroupsPage() {
       </div>
       {creating && <CreateGroupSheet onClose={() => setCreating(false)} />}
     </>
+  )
+}
+
+/** Paste an invite (or a «koble»-link) – on iPhone links open in Safari, not in the home-screen app. */
+export function linkTarget(raw: string): string | null {
+  const t = raw.trim()
+  const claim = /koble\/(felix|david|erik)\/([0-9a-z]+)/i.exec(t)
+  if (claim) return `koble/${claim[1].toLowerCase()}/${claim[2]}`
+  const inv = /bli-med\/([^/?#\s]+)/.exec(t)
+  if (inv) return `bli-med/${inv[1]}`
+  if (/^[0-9a-z]{6,12}$/i.test(t)) return `bli-med/${t.toLowerCase()}`
+  return null
+}
+
+function InvitePaste() {
+  const [code, setCode] = useState('')
+  const target = linkTarget(code)
+  const canRead = typeof navigator !== 'undefined' && !!navigator.clipboard?.readText
+  return (
+    <section className="card stack">
+      <h2>Har du fått en invitasjon?</h2>
+      <p className="tiny muted" style={{ margin: 0 }}>
+        Åpnet lenken seg i nettleseren i stedet for appen? Kopier lenken og lim den inn her.
+      </p>
+      <form
+        className="row"
+        style={{ gap: 8 }}
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (target) go(target)
+        }}
+      >
+        <input className="input grow" placeholder="Lim inn lenke eller kode" value={code} onChange={(e) => setCode(e.target.value)} autoCapitalize="none" aria-label="Invitasjonslenke eller kode" />
+        {canRead && !code && (
+          <button
+            type="button"
+            className="btn"
+            onClick={async () => {
+              try {
+                const t = await navigator.clipboard.readText()
+                const to = linkTarget(t)
+                if (to) go(to)
+                else (setCode(t.slice(0, 200)), toast('Fant ingen invitasjon i utklippstavla'))
+              } catch {
+                toast('Fikk ikke lese utklippstavla – lim inn selv')
+              }
+            }}
+          >
+            Lim inn
+          </button>
+        )}
+        {(code || !canRead) && (
+          <button className="btn" type="submit" disabled={!target}>
+            Åpne
+          </button>
+        )}
+      </form>
+    </section>
   )
 }
 

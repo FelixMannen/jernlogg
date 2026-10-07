@@ -13,7 +13,11 @@ function exerciseFromHistory(userId: string, exerciseId: string, count?: number,
   const sets: SetEntry[] = []
   for (let i = 0; i < n; i++) {
     const ref = work[i] ?? work[work.length - 1]
-    sets.push(newSet({ weight: ref?.weight ?? null, reps: reps ?? ref?.reps ?? null }))
+    // suggestions only (shown faded): what you type in set 1 is copied down to the empty sets below
+    const s = newSet()
+    const hint = { weight: ref?.weight ?? null, reps: reps ?? ref?.reps ?? null }
+    if (hint.weight != null || hint.reps != null) s.hint = hint
+    sets.push(s)
   }
   return { uid: uid('x'), exerciseId, sets }
 }
@@ -152,6 +156,11 @@ export function startRest(seconds: number) {
 }
 export function adjustRest(delta: number) {
   if (!rest) return
+  // after «Kjør!»: +15 starts a fresh 15 s extension from now
+  if (rest.endAt <= Date.now()) {
+    if (delta > 0) setRest({ endAt: Date.now() + delta * 1000, total: delta })
+    return
+  }
   setRest({ endAt: rest.endAt + delta * 1000, total: Math.max(5, rest.total + delta) })
 }
 export function stopRest() {

@@ -1821,3 +1821,22 @@ textarea.input {
 a.btn {
   text-decoration: none;
 }
+
+/* faded suggestion copied down from the set above / last session */
+.set-input.ghost::placeholder {
+  color: color-mix(in srgb, var(--chalk) 42%, transparent);
+}
+.fetch-prev {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 0.8125rem;
+  color: var(--chalk-2);
+  padding: 7px 10px;
+  margin: 0 0 8px;
+  border-radius: 8px;
+  border: 1px dashed var(--seam);
+}
+.fetch-prev:active {
+  background: var(--rubber-2);
+}

@@ -18,6 +18,7 @@ import {
   deleteSupplement,
   togglePauseSupplement,
   refill,
+  setRefillDate,
   pausedNow,
   UNITS,
   type Supplement,
@@ -126,6 +127,7 @@ function SupplementEditor({ id, onClose }: { id?: string; onClose: () => void })
   const [unit, setUnit] = useState(cur?.unit ?? 'g')
   const [hours, setHours] = useState<number[]>(cur?.doses.map((d) => d.hour) ?? [8])
   const [stock, setStock] = useState(cur?.stock ? String(cur.stock.total).replace('.', ',') : '')
+  const [since, setSince] = useState(cur?.stock?.refillAt ?? dayKey())
   const amt = parseFloat(amount.replace(',', '.'))
   const total = parseFloat(stock.replace(',', '.'))
   const valid = name.trim() && hours.length > 0
@@ -199,9 +201,15 @@ function SupplementEditor({ id, onClose }: { id?: string; onClose: () => void })
         </div>
 
         <label className="field">
-          <span>Lager (valgfritt): hvor mye er i boksen, i {unit}?</span>
+          <span>Lager (valgfritt): hvor mye var i boksen da du begynte på den, i {unit}?</span>
           <input className="input num" inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder={unit === 'g' ? 'f.eks. 500' : 'f.eks. 120'} />
         </label>
+        {stock && (
+          <label className="field">
+            <span>Begynte på boksen (alle doser fra og med denne dagen trekkes fra)</span>
+            <input className="input" type="date" value={since} max={dayKey()} onChange={(e) => setSince(e.target.value || dayKey())} />
+          </label>
+        )}
         {stock && !(amt > 0) && <p className="tiny" style={{ color: 'var(--gold)', margin: 0 }}>Fyll inn mengde per dose for å få lagerteller.</p>}
 
         <button
@@ -216,7 +224,7 @@ function SupplementEditor({ id, onClose }: { id?: string; onClose: () => void })
               amount: amt > 0 ? amt : undefined,
               unit,
               doses: sorted.map((hour) => ({ hour })),
-              stock: total > 0 ? { total, refillAt: cur?.stock && cur.stock.total === total ? cur.stock.refillAt : dayKey() } : undefined,
+              stock: total > 0 ? { total, refillAt: since } : undefined,
               createdAt: cur?.createdAt ?? dayKey(),
             }
             saveSupplement(s, id)
@@ -269,7 +277,11 @@ function SupplementDetail({ id, onClose, onEdit }: { id: string; onClose: () => 
         </div>
 
         {yStatus !== 'full' && yStatus !== 'paused' && (
-          <button className="btn block" onClick={() => (setDayTaken(sup, yesterday, true), toast('Registrert for i går'))}>
+          <button className="btn block" onClick={() => {
+              setDayTaken(sup, yesterday, true)
+              if (s.stock && yesterday < s.stock.refillAt) toast('Registrert for i går', undefined, { label: 'Trekk fra boksen', run: () => setRefillDate(sup, yesterday) })
+              else toast('Registrert for i går')
+            }}>
             Tok den i går
           </button>
         )}
@@ -291,7 +303,16 @@ function SupplementDetail({ id, onClose, onEdit }: { id: string; onClose: () => 
                   disabled={!editable}
                   title={d}
                   aria-label={`${d}: ${st}`}
-                  onClick={() => setDayTaken(sup, d, st !== 'full')}
+                  onClick={() => {
+                    const taking = st !== 'full'
+                    setDayTaken(sup, d, taking)
+                    // ticked off a day before the current box was registered: offer to count it from that box
+                    if (taking && s.stock && d < s.stock.refillAt)
+                      toast(`Registrert ${parseInt(d.slice(8), 10)}.`, undefined, {
+                        label: 'Trekk fra boksen',
+                        run: () => setRefillDate(sup, d),
+                      })
+                  }}
                 >
                   {parseInt(d.slice(8), 10)}
                 </button>
@@ -300,6 +321,7 @@ function SupplementDetail({ id, onClose, onEdit }: { id: string; onClose: () => 
           </div>
           <div className="tiny muted" style={{ marginTop: 6 }}>
             Trykk på en dag for å krysse av eller fjerne. Grønn = alt tatt, gul = delvis, grå = pause.
+            {s.stock ? ` Lageret teller doser fra ${parseInt(s.stock.refillAt.slice(8), 10)}.${s.stock.refillAt.slice(5, 7)} (endres under «Rediger»).` : ''}
           </div>
         </div>
 

@@ -279,6 +279,8 @@ export function confetti(colors: string[]) {
 
 export function vibrate(pattern: number | number[]) {
   try {
+    // browsers refuse (and log an error) before the user has touched the page, e.g. a rest timer ending right after reload
+    if ((navigator as any).userActivation && !(navigator as any).userActivation.hasBeenActive) return
     navigator.vibrate?.(pattern)
   } catch {}
 }

@@ -112,6 +112,7 @@ export type SetEntry = {
   warmup?: boolean
   done: boolean
   doneAt?: string
+  hint?: { weight: number | null; reps: number | null } // suggested values (last session / template), shown faded until typed
 }
 
 export type WorkoutExercise = {

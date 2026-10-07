@@ -142,3 +142,11 @@
 - **Ytelse:** bare relevante data lastes, deretter bare endringer; cache i IndexedDB (ingen 5 MB-grense); raskere oppslag per samling
 - Import lagrer alltid på din egen konto (advarsel hvis teksten gjelder en annen)
 - Nye tester: `scripts/test-rls.mjs` (96 sjekker av tilgangsreglene i ekte Postgres/PGlite), `scripts/groups-e2e.mjs`
+
+## Runde 22 – tilbakemeldinger fra Felix
+- Kg og reps du skriver i et sett vises med svak farge i de tomme settene under (og i nye sett) – huk av direkte, eller skriv noe annet. Uten noe skrevet vises forrige økt / malen svakt
+- Tydelig knapp «↺ Hent kg og reps fra forrige økt» på hver øvelse (fyller alle sett, legger til sett om du tok flere sist). Kolonnen heter nå «Forrige økt»
+- Hviletimer: når det står «Kjør!» er −15 borte, og +15 gir 15 nye sekunder pause
+- Supplementer: lageret har en startdato («Begynte på boksen»). Krysser du av dager før boksen ble registrert, kan du trykke «Trekk fra boksen» så de teller med
+- Invitasjoner: iPhone åpner lenker i Safari i stedet for appen på hjem-skjermen – innloggingssiden tilbyr nå «Kopier lenken», og under Grupper kan du lime inn (eller trykke «Lim inn») invitasjoner og koblingslenker
+- Ny test: `scripts/feedback-e2e.mjs`

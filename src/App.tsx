@@ -258,11 +258,13 @@ function RestTimer() {
   const over = left <= 0
   return (
     <div className={`rest ${over ? 'over' : ''}`} role="timer" aria-label="Hviletimer">
-      <button onClick={() => adjustRest(-15)} aria-label="Trekk fra 15 sekunder">
-        −15
-      </button>
+      {!over && (
+        <button onClick={() => adjustRest(-15)} aria-label="Trekk fra 15 sekunder">
+          −15
+        </button>
+      )}
       <span className="t">{over ? 'Kjør!' : fmtDuration(left + 999)}</span>
-      <button onClick={() => adjustRest(15)} aria-label="Legg til 15 sekunder">
+      <button onClick={() => adjustRest(15)} aria-label={over ? 'Forleng pausen med 15 sekunder' : 'Legg til 15 sekunder'}>
         +15
       </button>
       <button onClick={stopRest} aria-label="Stopp hviletimer">

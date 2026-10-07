@@ -329,9 +329,10 @@ function ExerciseCard({
 
   let workIdx = 0,
     warmIdx = 0
+  const entered: Record<'warm' | 'work', { weight: number | null; reps: number | null }> = { warm: { weight: null, reps: null }, work: { weight: null, reps: null } }
   const allSetsThisExercise = w.exercises.filter((e) => e.exerciseId === ex.exerciseId).flatMap((e) => e.sets)
 
-  const toggleDone = (s: SetEntry, prevRef?: SetEntry) => {
+  const toggleDone = (s: SetEntry, ghost: { weight: number | null; reps: number | null }) => {
     unlockAudio()
     if (s.done) {
       updSet(s.uid, (x) => {
@@ -340,8 +341,8 @@ function ExerciseCard({
       })
       return
     }
-    const weight = s.weight ?? prevRef?.weight ?? null
-    const reps = s.reps ?? prevRef?.reps ?? null
+    const weight = s.weight ?? ghost.weight
+    const reps = s.reps ?? ghost.reps
     if (reps == null) {
       toast('Fyll inn reps først')
       return
@@ -353,6 +354,7 @@ function ExerciseCard({
       x.reps = reps
       x.done = true
       x.doneAt = new Date().toISOString()
+      delete x.hint
     })
     setFocus(null)
     // in a superset, rest only after the last exercise of the group
@@ -392,6 +394,29 @@ function ExerciseCard({
       </div>
       <RecordLine exerciseId={ex.exerciseId} me={me} />
       {hint && <div className="ex-note">💡 {hint}</div>}
+      {last && ex.sets.some((x) => !x.done) && (
+        <button
+          className="fetch-prev"
+          onClick={() => {
+            upd((e) => {
+              let wi = 0,
+                wa = 0
+              for (const x of e.sets) {
+                const ref = x.warmup ? lastWarm[wa++] : lastWork[wi++]
+                if (x.done || !ref) continue
+                x.weight = ref.weight
+                x.reps = ref.reps
+                delete x.hint
+              }
+              // last time had more work sets: add them
+              for (let i = e.sets.filter((x) => !x.warmup).length; i < lastWork.length; i++) e.sets.push(newSet({ weight: lastWork[i].weight, reps: lastWork[i].reps }))
+            })
+            toast(`Hentet fra ${fmtDate(last.date)}: ${lastWork.map((r) => `${fmtKg(r.weight)}×${r.reps}`).join(', ')}`)
+          }}
+        >
+          ↺ Hent kg og reps fra forrige økt <span className="muted">({fmtDate(last.date)})</span>
+        </button>
+      )}
       {noteOpen && (
         <input
           className="input"
@@ -403,7 +428,7 @@ function ExerciseCard({
       )}
       <div className="set-grid headers">
         <span style={{ textAlign: 'center' }}>Sett</span>
-        <span>Forrige</span>
+        <span title="Trykk på et tall for å bruke det">Forrige økt</span>
         <span style={{ textAlign: 'center' }}>{info.bodyweight ? '+kg' : 'kg'}</span>
         <span style={{ textAlign: 'center' }}>{info.name.includes('(sek)') ? 'sek' : 'Reps'}</span>
         <span />
@@ -411,6 +436,14 @@ function ExerciseCard({
       {ex.sets.map((s) => {
         const label = s.warmup ? `V${++warmIdx}` : String(++workIdx)
         const prevRef = s.warmup ? lastWarm[warmIdx - 1] : lastWork[workIdx - 1]
+        // faded suggestion: what you typed in an earlier set of this exercise, else last session / template
+        const kind = s.warmup ? 'warm' : 'work'
+        const ghost = {
+          weight: s.weight != null ? null : (entered[kind].weight ?? s.hint?.weight ?? prevRef?.weight ?? null),
+          reps: s.reps != null ? null : (entered[kind].reps ?? s.hint?.reps ?? prevRef?.reps ?? null),
+        }
+        if (s.weight != null) entered[kind].weight = s.weight
+        if (s.reps != null) entered[kind].reps = s.reps
         const isPR = s.done && livePRCheck(me, ex.exerciseId, s, workoutId, allSetsThisExercise.filter((o) => (o.doneAt ?? '') < (s.doneAt ?? ''))).length > 0
         const isNext = !s.done && ex.sets.find((x) => !x.done)?.uid === s.uid && ex.sets.some((x) => x.done)
         return (
@@ -418,7 +451,7 @@ function ExerciseCard({
             <div className={`set-grid set-row ${s.done ? 'done' : ''} ${isPR ? 'pr' : ''} ${isNext ? 'next' : ''}`}>
               <button
                 className={`set-idx ${s.warmup ? 'warm' : ''}`}
-                onClick={() => setSetMenu({ uid: s.uid, label, prevWeight: prevRef?.weight ?? null })}
+                onClick={() => setSetMenu({ uid: s.uid, label, prevWeight: ghost.weight ?? prevRef?.weight ?? null })}
                 aria-label={`Sett ${label}: oppvarming, skiver eller slett`}
                 title="Oppvarming, skiver eller slett"
               >
@@ -426,15 +459,16 @@ function ExerciseCard({
               </button>
               <button
                 className="set-prev"
-                onClick={() => prevRef && updSet(s.uid, (x) => ((x.weight = prevRef.weight), (x.reps = prevRef.reps)))}
-                aria-label="Bruk forrige"
+                onClick={() => prevRef && updSet(s.uid, (x) => ((x.weight = prevRef.weight), (x.reps = prevRef.reps), delete x.hint))}
+                aria-label={prevRef ? `Bruk forrige økt: ${fmtKg(prevRef.weight)} kg × ${prevRef.reps}` : 'Ingen forrige økt'}
               >
                 {prevRef ? `${fmtKg(prevRef.weight)}×${prevRef.reps}` : '–'}
                 {isPR && <span style={{ marginLeft: 4 }}>🏆</span>}
               </button>
               <NumInput
                 value={s.weight}
-                placeholder={prevRef?.weight != null ? fmtKg(prevRef.weight) : '0'}
+                ghost={ghost.weight != null}
+                placeholder={ghost.weight != null ? fmtKg(ghost.weight) : '0'}
                 decimal
                 onFocus={() => setFocus({ set: s.uid, field: 'weight' })}
                 onChange={(v) => updSet(s.uid, (x) => void (x.weight = v))}
@@ -442,12 +476,13 @@ function ExerciseCard({
               />
               <NumInput
                 value={s.reps}
-                placeholder={prevRef?.reps != null ? String(prevRef.reps) : '0'}
+                ghost={ghost.reps != null}
+                placeholder={ghost.reps != null ? String(ghost.reps) : '0'}
                 onFocus={() => setFocus({ set: s.uid, field: 'reps' })}
                 onChange={(v) => updSet(s.uid, (x) => void (x.reps = v))}
                 label={`Reps sett ${label}`}
               />
-              <button className="check" onClick={() => toggleDone(s, prevRef)} aria-label={s.done ? 'Angre fullført sett' : 'Fullfør sett'}>
+              <button className="check" onClick={() => toggleDone(s, ghost)} aria-label={s.done ? 'Angre fullført sett' : 'Fullfør sett'}>
                 <Icon.check />
               </button>
             </div>
@@ -460,7 +495,10 @@ function ExerciseCard({
           upd((e) => {
             const lastSet = [...e.sets].reverse().find((x) => !x.warmup) ?? e.sets[e.sets.length - 1]
             const ref = lastWork[e.sets.filter((x) => !x.warmup).length]
-            e.sets.push(newSet({ weight: lastSet?.weight ?? ref?.weight ?? null, reps: lastSet?.reps ?? ref?.reps ?? null }))
+            // empty set: shows the values from the set above, faded
+            const ns = newSet()
+            if (!lastSet && ref) ns.hint = { weight: ref.weight, reps: ref.reps }
+            e.sets.push(ns)
           })
         }
       >
@@ -637,6 +675,7 @@ function NumInput({
   value,
   onChange,
   placeholder,
+  ghost,
   decimal,
   onFocus,
   label,
@@ -644,6 +683,7 @@ function NumInput({
   value: number | null
   onChange: (v: number | null) => void
   placeholder?: string
+  ghost?: boolean
   decimal?: boolean
   onFocus?: () => void
   label: string
@@ -659,7 +699,7 @@ function NumInput({
   return (
     <input
       ref={ref}
-      className="set-input"
+      className={`set-input ${ghost ? 'ghost' : ''}`}
       inputMode={decimal ? 'decimal' : 'numeric'}
       enterKeyHint="next"
       aria-label={label}

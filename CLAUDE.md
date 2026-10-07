@@ -25,7 +25,7 @@ Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-t
 ## Arbeidsflyt
 - `npm run build` og `node scripts/smoke.mjs --seed <mappe>` (Playwright, mobilviewport, lokal modus) før hver push.
 - Supplementer: `node scripts/supp-e2e.mjs` (legg til, avkrysning i feed/profil, streak, i går, flere doser, pause, ny boks, personvern).
-- Innlogging/grupper/privat økt/slett konto: `node scripts/groups-e2e.mjs`. Tilgangsregler: `node scripts/test-rls.mjs`.
+- Innlogging/grupper/privat økt/slett konto: `node scripts/groups-e2e.mjs`. Tilgangsregler: `node scripts/test-rls.mjs`. Settforslag/hviletimer/lager/invitasjonslim: `node scripts/feedback-e2e.mjs`.
 - Løping/rediger/slett: `node scripts/run-e2e.mjs` (rute, stoppeklokke, ufullstendige data, topplister, ukesmål, rediger/slett, import av løpetur).
 - Endrer du import fra tekst: `npx tsx scripts/test-import.ts` (parser) og `node scripts/import-e2e.mjs` (hele #/import-flyten). Formatet er beskrevet i `src/lib/importText.ts` og må være bakoverkompatibelt – lenker Claude har laget skal fortsette å virke. Import lagrer alltid på den innloggede brukeren.
 - Tastatur/mobil: `node scripts/keyboard-e2e.mjs` simulerer iPhone-tastaturet. Regel (fra Erik): alt man kan trykke på mens man skriver – søketreff, knapper i ark – skal alltid vises OVER tastaturet. Ark/overlays bruker `--vv-top`/`--vv-h` (synlig viewport), aldri `bottom: 0` mot hele skjermen.

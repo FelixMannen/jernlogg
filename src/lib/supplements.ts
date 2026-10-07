@@ -130,6 +130,11 @@ export function togglePauseSupplement(sup: Doc<Supplement>) {
   } else pauses.push({ from: today })
   put('supplements', sup.id, { ...sup.data, pauses })
 }
+/** Count doses from an earlier day (the box was started before it was registered in the app). */
+export function setRefillDate(sup: Doc<Supplement>, date: string) {
+  if (!sup.data.stock) return
+  put('supplements', sup.id, { ...sup.data, stock: { ...sup.data.stock, refillAt: date } })
+}
 export function refill(sup: Doc<Supplement>, total: number) {
   put('supplements', sup.id, { ...sup.data, stock: { total, refillAt: dayKey() } })
 }

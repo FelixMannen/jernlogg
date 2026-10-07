@@ -4,6 +4,7 @@ import { isLocal } from '../lib/supabase'
 import { IdentityFields } from '../components/Account'
 import { USER_COLORS, LEGACY_USERS } from '../lib/domain'
 import { Icon } from '../components/ui'
+import { isIOS, isStandalone } from '../lib/push'
 
 function linkInfo(hash: string | null): { kind: 'claim'; legacy: string; code: string } | { kind: 'invite'; code: string } | null {
   if (!hash) return null
@@ -113,6 +114,7 @@ export function LoginPage() {
             ? `Logg inn for å koble kontoen din til ${LEGACY_USERS.find((u) => u.id === link.legacy)?.name ?? 'din'} sin historikk.`
             : 'Styrke- og løpelogg for deg og gjengen din.'}
       </p>
+      {link && isIOS() && !isStandalone() && <OpenInAppCard hash={peekLink() ?? ''} kind={link.kind} />}
       {step === 'email' ? (
         <form
           className="stack"
@@ -190,6 +192,36 @@ export function LoginPage() {
         </p>
       )}
     </AuthShell>
+  )
+}
+
+/** iPhone opens links in Safari even when Jernlogg is on the home screen – offer to copy the link into the app. */
+function OpenInAppCard({ hash, kind }: { hash: string; kind: 'claim' | 'invite' }) {
+  const [copied, setCopied] = useState(false)
+  const [manual, setManual] = useState(false)
+  const url = `${location.origin}/${hash.replace(/^\/?/, '')}`
+  return (
+    <section className="card stack" style={{ marginBottom: 16 }}>
+      <b className="small">Har du Jernlogg på hjem-skjermen?</b>
+      <p className="tiny muted" style={{ margin: 0 }}>
+        Da er du kanskje allerede logget inn der. Kopier {kind === 'invite' ? 'invitasjonen' : 'lenken'}, åpne appen og lim den inn under Profil → 👥 Grupper → «Har du fått en invitasjon?».
+      </p>
+      <button
+        className="btn block"
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(url)
+            setCopied(true)
+          } catch {
+            setManual(true)
+          }
+        }}
+      >
+        {copied ? 'Kopiert ✓ – åpne appen og lim inn' : 'Kopier lenken'}
+      </button>
+      {manual && <input className="input tiny" readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="Lenke å kopiere" />}
+    </section>
   )
 }
 
