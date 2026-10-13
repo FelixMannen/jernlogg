@@ -162,6 +162,25 @@ export function templates(): Doc<Template>[] {
   return list<Template>('templates').sort((a, b) => a.data.name.localeCompare(b.data.name, 'nb'))
 }
 
+export type QuickStart = { kind: 'run' } | { kind: 'template'; id: string; name: string } | { kind: 'empty' }
+
+/** The kind of session the user starts most often (last 20 sessions; ties go to the most recent). */
+export function favoriteStart(userId: string): QuickStart {
+  const tpls = new Map(templates().map((t) => [t.id, t.data.name]))
+  const keyOf = (w: Workout) => (w.kind === 'run' ? 'run' : w.templateId && tpls.has(w.templateId) ? 'tpl:' + w.templateId : 'empty')
+  const counts = new Map<string, number>()
+  for (const w of doneWorkouts(userId).slice(0, 20)) {
+    const k = keyOf(w.data)
+    counts.set(k, (counts.get(k) ?? 0) + 1)
+  }
+  let best = 'empty'
+  let max = 0
+  for (const [k, n] of counts) if (n > max) [best, max] = [k, n] // Map keeps first-seen (= most recent) order
+  if (best === 'run') return { kind: 'run' }
+  if (best.startsWith('tpl:')) return { kind: 'template', id: best.slice(4), name: tpls.get(best.slice(4))! }
+  return { kind: 'empty' }
+}
+
 export function profile(userId: string): Profile {
   return getDoc<Profile>(`profile:${userId}`)?.data ?? {}
 }

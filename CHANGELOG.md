@@ -161,3 +161,8 @@
 - Testskriptene virker på Windows: Chromium-sti fra `PW_CHROMIUM` (ellers Playwrights egen), skjermbilder i systemets temp-mappe, Vite startes med node i stedet for `npx`
 - `pwa-check` bruker full Chromium og gir varseltillatelse, siden headless-shell alltid svarer «denied»
 - Ingen endringer i appen
+
+## Runde 25 – tilbakemeldinger fra Felix
+- Hurtigstart: trykker du på + i menyen igjen mens du står på «Ny økt», starter appen den typen økt du gjør oftest (blant de siste 20: en mal, løpetur med stoppeklokke eller tom styrkeøkt; uavgjort = den nyeste). Startskjermen viser hva som blir startet
+- Treningsdager (siste 18 uker): ukedager M T O T F L S til venstre og ukenummer øverst
+- Ny test: `scripts/quickstart-e2e.mjs`

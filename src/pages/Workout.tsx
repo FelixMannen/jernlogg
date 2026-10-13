@@ -24,10 +24,12 @@ import {
   fmtDate,
   PR_LABEL,
   sharedOnly,
+  favoriteStart,
+  type QuickStart,
 } from '../lib/stats'
 import { notifyFinished } from '../lib/push'
 import { RunActive } from './Run'
-import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout, setProfile, setWorkoutPrivate } from '../lib/actions'
+import { startWorkout, updateWorkout, addExercises, finishWorkout, discardWorkout, newSet, startRest, startBackdatedWorkout, setProfile, setWorkoutPrivate, startStopwatch } from '../lib/actions'
 
 export function WorkoutPage() {
   useStoreVersion()
@@ -37,6 +39,16 @@ export function WorkoutPage() {
   if (active) return <Logger id={active.id} />
   return <StartScreen />
 }
+
+/** Second tap on «Start» while on the start screen: start the kind of session the user does most often. */
+export function quickStart(me: string) {
+  const fav = favoriteStart(me)
+  if (fav.kind === 'run') startStopwatch(me as UserId)
+  else startWorkout(me as UserId, fav.kind === 'template' ? fav.id : undefined)
+  vibrate(20)
+}
+
+const quickStartLabel = (q: QuickStart) => (q.kind === 'run' ? 'en løpetur med stoppeklokke' : q.kind === 'template' ? `«${q.name}»` : 'en tom styrkeøkt')
 
 function StartScreen() {
   const { me } = useMe()
@@ -62,6 +74,9 @@ function StartScreen() {
             <span className="tiny muted">Stoppeklokke eller logg</span>
           </button>
         </div>
+        <p className="tiny muted" style={{ textAlign: 'center' }}>
+          Trykk på + igjen for å starte {quickStartLabel(favoriteStart(me))} med en gang.
+        </p>
         {tpls.length > 0 && (
           <section>
             <div className="section-title">

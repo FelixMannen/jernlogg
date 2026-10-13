@@ -1100,14 +1100,23 @@ textarea.input {
 /* heatmap */
 .heat {
   display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(7, 1fr);
   gap: 3px;
+  align-items: center;
 }
 .heat i {
   aspect-ratio: 1;
   border-radius: 3px;
   background: var(--floor-2);
+}
+.heat-week,
+.heat-day {
+  font-size: 0.5625rem;
+  line-height: 1;
+  color: var(--dust);
+  text-align: center;
+}
+.heat-day {
+  padding-right: 3px;
 }
 .group-bar {
   display: grid;

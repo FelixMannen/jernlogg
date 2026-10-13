@@ -7,7 +7,7 @@ import { getRest, subscribeRest, adjustRest, stopRest } from './lib/actions'
 import { list } from './lib/store'
 import type { Reaction, Comment } from './lib/domain'
 import { FeedPage } from './pages/Feed'
-import { WorkoutPage } from './pages/Workout'
+import { WorkoutPage, quickStart } from './pages/Workout'
 import { WorkoutDetailPage } from './pages/WorkoutDetail'
 import { LeaderboardPage } from './pages/Leaderboard'
 import { TemplatesPage } from './pages/Templates'
@@ -198,7 +198,7 @@ function Nav({ current }: { current: string }) {
       <div className="nav-inner">
         <NavLink to="feed" label="Feed" icon={<Icon.feed />} on={current === 'feed' || current === 'w'} />
         <NavLink to="topp" label="Topplister" icon={<Icon.trophy />} on={current === 'topp' || current === 'ex'} />
-        <StartLink on={current === 'okt' || current === 'import' || current === 'lop'} />
+        <StartLink on={current === 'okt' || current === 'import' || current === 'lop'} onStartScreen={current === 'okt'} />
         <NavLink to="maler" label="Maler" icon={<Icon.list />} on={current === 'maler'} />
         <NavLink
           to="profil"
@@ -220,12 +220,21 @@ function NavLink({ to, label, icon, on }: { to: string; label: string; icon: Rea
   )
 }
 
-function StartLink({ on }: { on: boolean }) {
+function StartLink({ on, onStartScreen }: { on: boolean; onStartScreen: boolean }) {
   const { me } = useMe()
   const active = activeWorkout(me)
   const now = useNow(active ? 1000 : 60000)
   return (
-    <a href="#/okt" className={`${on ? 'on' : ''} ${active ? 'live' : ''}`} aria-label={active ? 'Pågående økt' : 'Start økt'}>
+    <a
+      href="#/okt"
+      className={`${on ? 'on' : ''} ${active ? 'live' : ''}`}
+      aria-label={active ? 'Pågående økt' : onStartScreen ? 'Hurtigstart økt' : 'Start økt'}
+      onClick={(e) => {
+        if (!onStartScreen || active) return
+        e.preventDefault()
+        quickStart(me)
+      }}
+    >
       <span className="start-btn">
         {active ? (
           <span className="num" style={{ fontSize: '0.9375rem', fontWeight: 700 }}>

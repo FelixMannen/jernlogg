@@ -24,6 +24,7 @@ import {
   trainingDays,
   setsPerGroup,
   startOfWeek,
+  weekKey,
   weeklyGoal,
   badges,
   recentPRs,
@@ -332,14 +333,32 @@ function Heatmap({ userId, color }: { userId: string; color: string }) {
         <h2>Treningsdager</h2>
         <span className="tiny muted">{count} dager siste {weeks} uker</span>
       </div>
-      <div className="heat">
-        {cells.map((c) => (
-          <i
-            key={c.key}
-            title={c.key}
-            style={c.v ? { background: color, opacity: 0.45 + 0.55 * (c.v / max) } : c.future ? { opacity: 0.3 } : undefined}
-          />
-        ))}
+      <div className="heat" style={{ gridTemplateColumns: `auto repeat(${weeks}, 1fr)` }}>
+        <span />
+        {Array.from({ length: weeks }, (_, w) => {
+          const d = new Date(start)
+          d.setDate(start.getDate() + w * 7)
+          return (
+            <span key={w} className="heat-week num">
+              {Number(weekKey(d).slice(5))}
+            </span>
+          )
+        })}
+        {'MTOTFLS'.split('').map((label, day) => [
+          <span key={'d' + day} className="heat-day">
+            {label}
+          </span>,
+          ...Array.from({ length: weeks }, (_, w) => {
+            const c = cells[w * 7 + day]
+            return (
+              <i
+                key={c.key}
+                title={c.key}
+                style={c.v ? { background: color, opacity: 0.45 + 0.55 * (c.v / max) } : c.future ? { opacity: 0.3 } : undefined}
+              />
+            )
+          }),
+        ])}
       </div>
     </section>
   )
