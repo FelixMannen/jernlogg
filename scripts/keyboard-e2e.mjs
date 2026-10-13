@@ -3,13 +3,14 @@
 import { chromium, devices } from 'playwright'
 import { spawn } from 'child_process'
 import fs from 'fs'
-const out = process.argv[2] || '/tmp/claude-0/kb-shots'
+import { tmpdir } from 'os'
+const out = process.argv[2] || `${tmpdir()}/jernlogg/kb-shots`
 fs.rmSync(out, { recursive: true, force: true })
 fs.mkdirSync(out, { recursive: true })
 const PORT = 4187
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
 await new Promise((r) => setTimeout(r, 1500))
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined })
 const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'nb-NO' })
 await ctx.addInitScript(() => {
   try {

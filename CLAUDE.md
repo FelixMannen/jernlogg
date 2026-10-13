@@ -24,6 +24,8 @@ Brukerne sender tilbakemeldinger fra profilsiden i appen. De ligger i Supabase-t
 
 ## Arbeidsflyt
 - `npm run build` og `node scripts/smoke.mjs --seed <mappe>` (Playwright, mobilviewport, lokal modus) før hver push.
+- Testskriptene virker både lokalt (Windows, `npx playwright install chromium` én gang) og i sky-container: sett `PW_CHROMIUM=/opt/pw-browsers/chromium` der, ellers brukes Playwrights egen Chromium. Skjermbilder havner i `<temp>/jernlogg/…` hvis du ikke gir mappe. Vite startes med `node node_modules/vite/bin/vite.js` (ikke `npx`, som ikke kan spawnes på Windows).
+- Felix har sagt (2026-10-13) at Claude kan pushe til `main` på egen hånd når build og relevante tester er grønne.
 - Supplementer: `node scripts/supp-e2e.mjs` (legg til, avkrysning i feed/profil, streak, i går, flere doser, pause, ny boks, personvern).
 - Innlogging/grupper/privat økt/slett konto: `node scripts/groups-e2e.mjs`. Tilgangsregler: `node scripts/test-rls.mjs`. Settforslag/hviletimer/lager/invitasjonslim: `node scripts/feedback-e2e.mjs`.
 - Løping/rediger/slett: `node scripts/run-e2e.mjs` (rute, stoppeklokke, ufullstendige data, topplister, ukesmål, rediger/slett, import av løpetur).

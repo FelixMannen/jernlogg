@@ -3,16 +3,17 @@
 import { chromium, devices } from 'playwright'
 import { spawn } from 'child_process'
 import fs from 'fs'
+import { tmpdir } from 'os'
 
 const seed = process.argv.includes('--seed')
-const out = process.argv.filter((a) => !a.startsWith('--'))[2] || '/tmp/claude-0/shots'
+const out = process.argv.filter((a) => !a.startsWith('--'))[2] || `${tmpdir()}/jernlogg/shots`
 fs.mkdirSync(out, { recursive: true })
 const PORT = 4179
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
 await new Promise((r) => setTimeout(r, 1500))
 
 const errors = []
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined })
 const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'nb-NO', timezoneId: 'Asia/Seoul' })
 const page = await ctx.newPage()
 page.on('console', (m) => m.type() === 'error' && errors.push('console: ' + m.text()))

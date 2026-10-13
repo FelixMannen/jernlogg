@@ -3,13 +3,15 @@
 import { chromium, devices } from 'playwright'
 import { spawn } from 'child_process'
 import fs from 'fs'
-const out = process.argv[2] || '/tmp/claude-0/pwa-shots'
+import { tmpdir } from 'os'
+const out = process.argv[2] || `${tmpdir()}/jernlogg/pwa-shots`
 fs.mkdirSync(out, { recursive: true })
 const PORT = 4183
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
 await new Promise((r) => setTimeout(r, 1500))
 const base = `http://localhost:${PORT}`
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+// full Chromium (not the headless shell, which always reports notifications as 'denied')
+const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : { channel: 'chromium' })
 const errors = []
 const ok = (n, c, x = '') => (c ? console.log('✓', n) : (errors.push(n + ' ' + x), console.log('✗', n, x)))
 
@@ -29,7 +31,8 @@ const loginScript = ({ session, authId, userId }) => {
 }
 
 // --- Android-ish Chrome ---
-const ctx = await browser.newContext({ ...devices['Pixel 7'], locale: 'nb-NO' })
+// Playwright's bundled headless Chromium starts with notifications 'denied'; grant so the off-state is tested
+const ctx = await browser.newContext({ ...devices['Pixel 7'], locale: 'nb-NO', permissions: ['notifications'] })
 await ctx.addInitScript(loginScript, fakeLogin('felix'))
 const page = await ctx.newPage()
 page.on('pageerror', (e) => errors.push('pageerror ' + e.message))

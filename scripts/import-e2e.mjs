@@ -2,12 +2,13 @@
 import { chromium, devices } from 'playwright'
 import { spawn } from 'child_process'
 import fs from 'fs'
-const out = process.argv[2] || '/tmp/claude-0/import-shots'
+import { tmpdir } from 'os'
+const out = process.argv[2] || `${tmpdir()}/jernlogg/import-shots`
 fs.mkdirSync(out, { recursive: true })
 const PORT = 4181
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
 await new Promise((r) => setTimeout(r, 1500))
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined })
 const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'nb-NO', timezoneId: 'Asia/Seoul' })
 const page = await ctx.newPage()
 const errors = []
@@ -113,8 +114,8 @@ await t('ukjent øvelse må avklares', async () => {
 
 await t('fil-opplasting', async () => {
   await open('#/import')
-  fs.writeFileSync('/tmp/claude-0/okt.md', '# Jernlogg v1\nbruker: david\nMarkløft: 3x5x140\n')
-  await page.setInputFiles('input[type=file]', '/tmp/claude-0/okt.md')
+  fs.writeFileSync(`${tmpdir()}/jernlogg/okt.md`, '# Jernlogg v1\nbruker: david\nMarkløft: 3x5x140\n')
+  await page.setInputFiles('input[type=file]', `${tmpdir()}/jernlogg/okt.md`)
   await page.locator('.ex-card').first().waitFor()
   if (await page.getByText('Teksten gjelder').count()) throw new Error('david (lowercase) not matched to me')
 })

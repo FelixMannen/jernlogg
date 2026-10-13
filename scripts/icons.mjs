@@ -15,7 +15,7 @@ const jobs = [
   ['public/icon-maskable-512.png', 512, fullBleed(0.72), false],
   ['public/badge-96.png', 96, badge, true],
 ]
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const b = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined })
 for (const [file, s, src, transparent] of jobs) {
   const p = await b.newPage({ viewport: { width: s, height: s } })
   await p.setContent(`<html><body style="margin:0;background:${transparent ? 'transparent' : '#15181c'}">${src.replace('<svg ', `<svg width="${s}" height="${s}" `)}</body></html>`)
